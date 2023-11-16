@@ -1,6 +1,6 @@
 # Assessing Food Consumption, Micronutrient Intake, and the Contribution of Large-Scale Food Fortification to Micronutrient Adequacy in Tanzania Using Household Consumption and Expenditure Survey Data  
 
-Rie Goto,^1^ Liberty Mlambo,2 Lucia Segovia De La Revilla,1 Aleswa Swai,3 Hoyce Mshida,3 Alex Amos,3 Emilian Karugendo,4 Gareth Osman,5 Kevin Tang,1,6 Thomas Codd,2 Chris Chagumaira,2, Elaine L. Ferguson,1,7 E. Louise Ander,2,8 Theresia Jumbe,9 Ray Masumo,3 Omar Dary,10 Jennifer Yourkavitch,11,12 Sarah Pedersen,13 Germana Leyna,3,14 Monica Woldt,11,15 Edward J. M. Joy1,7
+Rie Goto,1 Liberty Mlambo,2 Lucia Segovia De La Revilla,1 Aleswa Swai,3 Hoyce Mshida,3 Alex Amos,3 Emilian Karugendo,4 Gareth Osman,5 Kevin Tang,1,6 Thomas Codd,2 Chris Chagumaira,2, Elaine L. Ferguson,1,7 E. Louise Ander,2,8 Theresia Jumbe,9 Ray Masumo,3 Omar Dary,10 Jennifer Yourkavitch,11,12 Sarah Pedersen,13 Germana Leyna,3,14 Monica Woldt,11,15 Edward J. M. Joy1,7
 1. Faculty of Epidemiology and Population Health, London School of Hygiene & Tropical Medicine, Keppel Street, London WC1E 7HT, UK
 2. School of Biosciences, University of Nottingham, Sutton Bonington Campus, Loughborough LE12 5RD, UK
 3. Tanzania Food and Nutrition Centre, 22 Barack Obama Av., Dar es Salaam, Tanzania 
