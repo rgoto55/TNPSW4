@@ -15,13 +15,13 @@ https://microdata.worldbank.org/index.php/catalog/2862
 
 **hh_sec_b.csv** - Roster of HH members and individual characteristics including: sex, age, eating food in the household in the last 7 days? (5587 obs)
 
-1.2. Files organised separately;
+1.2. Files organised separately (in folder 'files');
 
 **food-id.csv** - 60 food items and code
 
-**TNPSW4_unitconv.csv** - unit conversion factors
+**unitconv.csv** - unit conversion factors
 
-**TNPS_EP.csv** - edible portion
+**ediblep.csv** - edible portion
 
 
 ## 2. Settings
@@ -62,7 +62,7 @@ dataJ1cons <- left_join(hh, dataJ1, by = "y4_hhid")
 
 3.1. merge with food consumption unit conversion factor (TNPSW4_unitconv.csv) to calculate the food consumption in grams (cons_g)
 ```{r eval=FALSE}
-foodconv <- read_csv("TNPSW4_unitconv.csv") %>% 
+foodconv <- read_csv("unitconv.csv") %>% 
   select(-itemname)  # omit duplicate variable
 
 dataJ1consA <- left_join(dataJ1cons, foodconv, by = c('itemcode', 'cons_unit'))
@@ -71,7 +71,7 @@ dataJ1consA <- left_join(dataJ1cons, foodconv, by = c('itemcode', 'cons_unit'))
 
 3.2. merge edible portion function in TNPS_EP.csv to calculate estimate amount of food consumed in the HH (cons_g_hh)
 ```{r eval=FALSE}
-df_EP <- read_csv("TNPS_EP.csv") %>% 
+df_EP <- read_csv("ediblep.csv") %>% 
   select(-itemname)
 
 dataJ1consB <- left_join(dataJ1consA, df_EP, by = 'itemcode') %>% 
