@@ -47,3 +47,8 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Data
+
+food-matching/*/*.csv
+food-matching/*/*.rds

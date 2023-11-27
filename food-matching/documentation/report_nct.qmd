@@ -1,0 +1,90 @@
+---
+title: "Development of the Nutrient Conversion Table for Tanzania National Panel Survey 2019-2020"
+format: html
+editor: source
+---
+
+## Introduction
+
+The National Panel Survey (NPS 2019-2020) Extended Panel with Sex Disaggregated Data (NPS-DSS 2019-2020) have multiple modules. 
+
+There are two modules that provide information on food consumed. 
+
+One module that provided information for food consumed outside household (Module F), which was excluded from the analysis, and the module that provided information on apparent consumption of food over the past one week at the household level (Module J1). The Nutrient Conversion Table (NCT) would be prepared for the foods reported in this module and from now on is referred as the food list. The food list consisted in 60 key food items/ groups grouped into 12 broad categories: "Cereals and Cereal Products”, “Starches, Sugars and Sweets”, “Pulses, Dry”, “Nuts and Seeds”, “Vegetables”, “Fruits”, “Meat, Meat Products, Fish”, “Milk and Milk Products”, Oils and Fats”, “Spices and Other Foods”, and “Beverages". The food list is almost identical to previous rounds with only one item being subdivided into two. 
+
+It also has a FFQ module (Module J3) and information on who shared the meal from outside household over the same period (Module J4). 
+
+Other important modules may be Local units (Module G) which provided information of the local measurement units used in the surveyed communities. The unique ids are combination of food id, food name and food item number, as multiple responses per food item were allowed.
+
+Also, assistance and groups which provide information about whether the household received financial or in-kind assistance (i.e., food/maize distribution) (module 01). 
+
+The information above was extracted from the Basic Information document for the NPS-SDD (2019-2020) [REF]
+
+## Methods
+
+### Data sources
+
+#### Food consumption data
+
+#### Food Dictionary
+
+### Tanzania HCES: 2018 Household Budget Survey
+
+|Version | Changes made| Date|
+|---|---|---|
+|v.3.0.0| Removed the duplicated food dictionary (ID_3) in the NCT | 2023-11-27|
+
+
+There are some food items that were excluded because they were problematic, for instance, herbal tea (23914.05) from US19(35238), as it has too many missing values.
+
+In other to avoid duplication, some items were either excluded. 
+
+For example, there were four entries for "chicken" ("21121.03") which is leading to duplicated items. The same found for other items such as rice, soft drinks (24490.02). Similarly, breads which were reported as slices and loaf ("111205", "111204", "111202") because were replicating the same food item in the composition.
+
+
+```{r}
+
+subset(hbs_nct, grepl("chicken", food_desc, ignore.case = T))
+
+
+```
+
+Therefore, we decided to exclude all the duplicated but the one with the highest number of HHs reporting. We did not sum them, because it could be that one household reported two or more of the individual items in the list for which we used the same food items (composition). This led to the version (3.0.0). 
+
+
+#### Food composition tables & nutrient values
+
+Identify the FCTs to be used. FCTs are normally selected based on a number of criteria, including geographic representativeness, data completeness and data quality. 
+
+For these analyses FCTs were already selected and are reported in the protocol. Hence, the preference order was: TZ FCT, 2008 > Western Africa FCT, 2019 > Kenya FCT, 2018 > USDA FCT, 2019. 
+
+Specific FCTs like uFish and/or uPulses may be used as well. 
+
+The TZ08 needed to be cleaned as it haven't been used within the MAPS framework before. For more information on the steps and assumptions see the [GitHub repository]().
+
+All the nutrients that are to be reported according to the protocol: Vitamin A, thiamine, riboflavin, niacin, folate, vitamin B6, vitamin B12, iron, and zinc, were reported in TZ08. However, there are other important information, such as edible portion, water (moisture) content, which were not provided. Hence, those values would be imputed from other FCTs (i.e., WA19). The nutrient comparison for values imputation will be done using energy. 
+
+
+### Food matching
+
+_01.food-matching.qmd
+
+
+# Food composition table (TZ06)
+
+12. Maize, flour, dry: We used "maize, flour, white, refined, non-fermented, raw" (23120.03.02) because fibre and vitamin A values were zero, indicating refined (if bran was present there were some fibre), and white maize (as yellow maize owns its colour to the carotenoids (Vitamin A)). 
+
+163. Cowpea, uncooked: Assumed to be the dry version by Energy (kcal) comparison. (1706.01)
+
+204. Beef, boneless: We assumed beef, moderate fat (21111.02.02) because of the fat content () was similar to the one reported as "Beef, medium fat, cooked". 
+
+490. Ginger: Assumed "fresh (root)" when comparing the Energy with the one reported in WA19. 
+
+1108. Palm oil: It's red palm oil (VITA_RAEmcg = 5000mcg). We need a dict code for red palm oil!
+
+## Quality Issues
+
+2. Bread roll: The composition values are the same as the "3. Bread, white". Hence, we are excluding that food item from the dict matches.
+
+Sweet potato: Vitamin A (RAE) values were not consistent with the food item description (i.e, too low for orange flesh, and too high for "white"), similarly, it looked too high for sweet potato leaves, when compared with values in WA19. If the values were analysed samples and/or we could access the original values, we could consider including them as it may reflect country specific differences, however since it is not possible to check the original values and its quality, we decided to excluded from the matches. 
+
