@@ -1,0 +1,462 @@
+---
+title: "01. Food matching"
+format: html
+editor: source
+---
+
+**Change log**
+
+
+v.2.1.0 - Removed some duplicated items. 
+v.2.0.0 - Changed the FCT preference order to KE18> WA19> US19 > TZ06 
+v.1.1.0. - Added FoodName_3 for all the food items, and re-organised the dataset, rice (husked) changed to white rice, excluded duplicated values in item 1102, changed tea dry to tea leaves, excluded (HBS:"117110") from item 603. 
+v.1.0.7. - Excluded: herbal tea (too many missing values),  jambolan from fruits (missing VITA_RAEmcg), excluded grasshoppers (missing THIAmcg)
+v.1.0.6 - Excluded sunflower and sesame seed from selection used for "1001. cooking oil". Fixed typo that duplicated paddy rice.
+
+
+## Food matching
+
+**Objective:** To provide the nutrient content information of the food reported as consumed in the TZ HCES survey (TZ HCES NCT). 
+
+**Output**: A dataset with the food listed as consumed and their corresponding nutrient values. 
+
+The food matching is performed using the following scripts:
+
+01_food-list
+02_weights
+03_tz20_nct
+
+Supporting & cleaning scripts are: 
+
+00_hbs18.R
+00_tz06.R
+
+
+### Step 1: Getting the list of foods
+
+We would extract the list of foods and the number of HH reporting consumption. That would give us an idea of the importance of the foods and their influence in the final results. 
+
+For instance, if a food is consumed by all HHs, then any assumption taken for that food would likely impact the final results of the model. However, if one food item is only reported as consumed by 1 HH the impact of the composition of that item is likely to be masked by the other foods. Hence, the accuracy of that values would be less important than those that are widely consumed. 
+
+The top 10 items are reported to be consumed by more than 50% of the HHs, whereas 8 foods are reported consumed by less than 1% of the HH. Hence, the accuracy of those 10 items should be as high as possible while the other 8 foods will have very little effect on the final results. In addition, we can see that there are a number of foods that are food lists instead of food items, for instance, "onions, tomatoes, carrots and green peppers, other viungo" (601). 
+
+Note that in the Wave 5, there is one food item in the list that is not reported "consumed" by any HHs, hence, the final food list goes from 60 to 59 food items. That is not the case for Wave 4. 
+
+**Table 1**: A dataset with the list of food reported as consumed and the number of HHs reporting consuming that food. 
+
+```{r, table-1}
+
+knitr::kable(food_consumed)
+
+```
+
+
+### Step 2: Matching food items
+
+**Change log**
+
+|Version | Changes made| Date|
+|---|---|---|
+|v.2.0.0| Removed the duplicated (using hbs18 weights v.3.0.0)| 2023-11-27|
+
+In order to match food reported as consumed with their corresponding nutrient values in diverse FCTs, we are first matching them to our standardised food dictionary (dictionary.df). This allow for easy matching between different datasets, and increases the interoperability with projects. More information about the food dictionary can be found in the MAPS project repository. 
+
+#### Single food matches
+
+Single food matches are those foods that are easily identifiable and have a one-to-one match in the FCT. For instance, salt.
+
+1003; SALT; 1699.02
+102; RICE (HUSKED); 23161.02.01 - Not included brown rice, as it was included in "paddy". 
+1101; TEA DRY; 1620.01 --> We are using tea leaves, but check, specially EP.
+201; CASSAVA FRESH; 1520.01.01
+206; COOKING BANANAS, PLANTAIN; 1313.01
+205; IRISH POTATOES; 1510.01
+701; RIPE BANANAS; 1312.01
+807; EGGS; 231.01 --> This one needs to be checked, maybe we need to include other animals eggs, i.e. duck, quail, etc. Although according to BHS18, only one HH reported the use of "other eggs".
+704; SUGARCANE; 1802.01
+103; MAIZE (GREEN, COB); 1290.01.01
+1107; LOCAL BREWS: No information on local beers or other alcoholic beverages was provided on the BHS18. We used "sorghum beer" (24310.04.01)
+1103; 
+1106; BOTTLED BEER: No information on local beers was provided on the BHS18. (24310.01.01) 
+1108;
+
+#### Multiple food matches
+
+Multiple matches are those foods that are food groups (i.e.,  a list of foods) or those that are one food but it possible to match to more than one item due to insufficient information in the food description (e.g., apple - apple, apple and apple, red). 
+
+According to FAO/ INFOODS Guidelines (@ref), when performing one-to-many matches, weighted mean is preferred. The consumption of the top ten food items (at least) should be done using weighted mean. The weights were derived from the information reported in the Tanzania HCES: 2018 Household Budget Survey, when possible, as more detailed food list was provided. 
+
+For example: 
+
+1001; COOKING OIL
+
+We are excluding butter oil (115101) which was coded as ghee ("22241.02.01") because it was reported in a different food item (1002) "BUTTER, MARGARINE, GHEE AND OTHER FAT PRODUCTS". 
+
+```{r cooking-oil, }
+
+subset(hbs_nct, str_detect(food_desc, " oil")) %>% #Selecting oils
+  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
+  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
+  filter(str_detect(dict_testsample_code, "^216")) %>%  #Selecting only oils (exc. butter)
+  mutate(N = (n/nn),                            # Getting HH per food id.
+         wt = N/sum(N)) %>%                     # Getting weights for each oil (contributrion to total)
+  View()              
+
+
+```
+
+Now we are standardising this process to get the information for each multiple item food entry.
+
+##### Weights 
+
+The weights were generated based on the food reported in the TZ HBS, which was a different HCES performed in Tanzania (Information regarding that dataset, and the corresponding output can be found here). We used that HCES because it provided more detailed information on the food consumed at the household level as it used a longer list of food items (n=`r length(unique(hbs_nct$food_id))`). This information was used to inform the food matches in the HCES. 
+
+To clean the TZ HBS for use in this script, run the script (00_hbs18.R). 
+
+Generating the matrix to store the information above: 
+ - item_id ("NPSDSS_code"), 
+ - key words related to the food items in the itemcode, eg, "oil" ("food"), 
+ - information on the food group that it belows to in HBS dataset ("group_code")
+ - dictionary ids. to be removed from the selection ("code")
+ 
+
+##### Matching decission
+
+
+1001; COOKING OIL
+
+We are excluding ghee ("22241.02.01") because it was reported in a different food item (1002) "BUTTER, MARGARINE, GHEE AND OTHER FAT PRODUCTS". 
+
+
+601; ONIONS, TOMATOES, CARROTS AND GREEN PEPPER, OTHER VIUNGO; c("1253.02.01", "1253.01.01", #onion "1234.03", "1234.02", "1290.9.05", #tomato incl. bitter
+"1251.01", #carrot
+"1652.01" ) #green pepper
+
+ONIONS, TOMATOES, CARROTS AND GREEN PEPPER, OTHER VIUNGO
+Excl. tomato preparations (tinned and sauce) - c("117302", "119102")
+
+"Other viungo" are normally considered other vegetables used for cooking relish/curry, according to our colleagues from TFNC. 
+
+```{r onion-toamto-test,}
+
+NPSDSS_code <- "601"
+food <- "onion|tomato|carrot|pepper"
+group_code <- ""
+code <- c("117302", "119102")
+
+subset(hbs_nct, grepl(food, food_desc, ignore.case = T) &  # Selecting food w/i a food group
+         grepl(group_code, food_id)) %>% 
+  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
+  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
+  filter(!food_id %in% code) %>%  #Removing foods (by food_id)
+   mutate(N = (n/nn),                            # Getting HH per food id.
+         wt = N/sum(N),              # Getting weights for each food (contribution to total of that category)
+         itemcode = NPSDSS_code) %>% print()
+
+```
+
+105; MAIZE (FLOUR); c("23120.03.02", "23120.03.01", "23120.03.03")
+
+In HBS18, maize flour was specified as "white" however here is not, and hence we need to add "yellow" maize flour, and well as refined, and unrefined. 
+
+
+301; SUGAR
+
+We removed codes c("116808", "118104") because the latter was the same composition of white sugar, and it was contributing minimally to the total, while the former was removed because it was reported separately (704)
+SUGARCANE. 
+
+602; SPINACH, CABBAGE AND OTHER GREEN VEGETABLES
+
+We have removed tea leaves and the word "green" was not used as it yielded many irrelevant results (e.g., green beans, green maize, etc). We are assuming that by "other green vegetables" it is referring to "leafy greens". We are removing coriander leaves (117109) as it is not a vegetable but more like an herb or condiment ("1654.01"). 
+	
+401; PEAS, BEANS, LENTILS AND OTHER PULSES
+
+Most of the items (n=4) were removed because the belong to a different category (i.e., coffee beans), and one was because it was already included in a different food item (peas leaves was included in 602, see above) and another because it referred to pulse products ("Pulse products (e.g. bagia, etc)") which it was not included in this item description.
+
+808; FRESH FISH AND SEAFOOD (INCLUDING DAGAA)
+
+We exclude the fresh dried fish because it did not match the description, and due to ambiguity of the name.
+
+809; DRIED/SALTED/CANNED FISH AND SEAFOOD (INCL. DAGAA)
+
+We exclude the fresh dried fish because it did not match the description, and due to ambiguity of the name.
+
+We have not included smoked and other preserved seafoods should be included here. For example: "Other preserved or processed fish and seafood and fish and seafood preparations".
+
+110; BUNS, CAKES AND BISCUITS
+
+```{r}
+
+NPSDSS_code <- "110"
+food <- "bun|cake|pastry|biscu"
+group_code <- "^111"
+code <- c("")
+
+subset(hbs_nct, grepl(food, food_desc, ignore.case = T) &  # Selecting food w/i a food group
+         grepl(group_code, food_id)) %>% 
+  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
+  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
+  filter(!food_id %in% code) %>%  #Removing foods (by food_id)
+   mutate(N = (n/nn),                            # Getting HH per food id.
+         wt = N/sum(N),              # Getting weights for each food (contribution to total of that category)
+         itemcode = NPSDSS_code) %>% print()
+
+```
+
+
+802; BEEF INCLUDING MINCED SAUSAGE
+
+702; CITRUS FRUITS (ORANGES, LEMON, TANGERINES, ETC.)
+
+502; COCONUTS (MATURE/IMMATURE)
+
+703; MANGOES, AVOCADOES AND OTHER FRUITS
+
+Removed all the fruits reported as individual items (e.g., citrus fruits, coconuts and bananas), nuts, dried and preserved fruits. 
+
+203; SWEET POTATOES
+
+No information on the use of orange sweet potato was provide within the survey, currently is 50/50 according to the team advise, and also as per the to [@okukuBaselineSurveyReport2016]. 
+
+For the fortification scenario, these values should be reviewed as it would be of high importance for the Vitamin A scenarios.
+
+901; FRESH MILK
+
+We removed those foods that were milk products because they are reported in a different food entry.
+
+Milk products:
+c("114402", "114602", "114601")
+
+Canned and tinned:
+c("114301", "114302", "114303")
+
+We have excluded flavoured milk, although this could be reviewed. 
+
+109; BREAD
+
+We included chapatis as they were consumed as bread and reported as bread in the HBS18.  
+
+```{r}
+
+NPSDSS_code <- "109"
+food <- "bread|chapa"
+group_code <- "^111"
+code <- c("")
+
+
+subset(hbs_nct, grepl(food, food_desc, ignore.case = T) &  # Selecting food w/i a food group
+         grepl(group_code, food_id)) %>% 
+  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
+  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
+  filter(!food_id %in% code) %>%  #Removing foods (by food_id)
+   mutate(N = (n/nn),                            # Getting HH per food id.
+         wt = N/sum(N),              # Getting weights for each food (contribution to total of that category)
+         itemcode = NPSDSS_code) %>% print()
+
+
+```
+
+
+1081; WHEAT FLOUR
+
+501; GROUNDNUTS IN SHELL/SHELLED
+
+1104; BOTTLED/CANNED SOFT DRINKS (SODA, JUICE, WATER)
+
+We are excluding the bottle water (122101), as it was already covered by the mineral water. 
+
+804; CHICKEN AND OTHER POULTRY
+
+202; CASSAVA DRY/FLOUR
+
+1004; OTHER SPICES
+
+This one need further clarification.
+
+902; MILK PRODUCTS (LIKE CREAM, CHEESE, YOGHURT ETC)
+
+We exclude clotted milk (114402) because was matched to cream in the composition data. 
+
+111; MACARONI, SPAGHETTI
+
+204; YAMS/COCOYAMS
+
+104; MAIZE (GRAIN)
+
+We have removed one item which is cooked.
+
+107; MILLET AND SORGHUM (FLOUR)
+
+303; HONEY, SYRUPS, JAMS, MARMALADE, JELLIES, CANNED FRUITS
+
+We are removing the individually reported jam ("118204", "118202", "118203"), and only keeping the generic jam (118299, Other Jams, marmalades (specify)),  which was the one with the highest weight. 
+
+
+801; GOAT MEAT
+
+603; CANNED, DRIED AND WILD VEGETABLES
+
+We are excluding ("117110") because it is already included under "602
+SPINACH, CABBAGE AND OTHER GREEN VEGETABLES". But it can be discussed whether to excluded from 602 and include it in 603. 
+
+803; PORK INCLUDING SAUSAGES AND BACON
+
+1002; BUTTER, MARGARINE, GHEE AND OTHER FAT PRODUCTS
+
+Excluded peanut butter, but kept butter oil (115101) as it was matched to ghee, we are keeping cooking fat and lard too. 
+
+```{r}
+
+NPSDSS_code <- "1002"
+food <- "butter|margarine|ghee|fat"
+group_code <- "^115"
+code <- c("115202")
+
+subset(hbs_nct, grepl(food, food_desc, ignore.case = T) &  # Selecting food w/i a food group
+         grepl(group_code, food_id)) %>% 
+  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
+  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
+  filter(!food_id %in% code) %>%  #Removing foods (by food_id)
+   mutate(N = (n/nn),                            # Getting HH per food id.
+         wt = N/sum(N),              # Getting weights for each food (contribution to total of that category)
+         itemcode = NPSDSS_code) %>% print()
+
+
+```
+
+112; OTHER CEREAL PRODUCTS
+
+Only teff and amaranth grain were included. It is only reported by 15HHs, but it could be discussed if other cereal products should be included, such as flour, samosa, chapatti should be included here. 
+
+503; CASHEW, ALMONDS AND OTHER NUTS
+
+1102; COFFEE AND COCOA
+
+After checking differences between this item and 1105. We are using here only powder, and excluding:
+
+121104 -  Coffee without milk - (23912.02.02) coffee beverages - reported under 1105.
+
+
+```{r}
+NPSDSS_code <- "1102"
+food <- "coffe|cocoa|choco"
+group_code <- "^121"
+code <- c("121104")
+
+subset(hbs_nct, grepl(food, food_desc, ignore.case = T) &  # Selecting food w/i a food group
+         grepl(group_code, food_id)) %>% 
+  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
+  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
+  filter(!food_id %in% code) %>%  #Removing foods (by food_id)
+   mutate(N = (n/nn),                            # Getting HH per food id.
+         wt = N/sum(N),              # Getting weights for each food (contribution to total of that category)
+         itemcode = NPSDSS_code) %>% print()
+
+```
+
+
+903; CANNED MILK/MILK POWDER
+
+Powdered, condensed or evaporated milk (NIDO) and 	
+Canned milk and also, added baby milk here, since it is not reported separately but this item should be reviewed. 
+
+207; OTHER STARCHES
+
+Only taro included
+
+101; RICE (PADDY)
+
+1082; WHEAT, BARLEY GRAIN AND OTHER CEREALS
+
+Only reported by 5HHs, hence it would only have minor impact. We are excluding 
+111599 as it was used for item (112) OTHER CEREAL PRODUCTS. 
+
+106: MILLET AND SORGHUM (GRAIN)
+
+504; SEEDS AND PRODUCTS FROM NUTS/SEEDS (EXCL. COOKING OIL)
+
+Excluded cottonut oil, and included here peanut butter, because it was reported by quite a number of hh in BHS18, although here is not included. Excluded (21631.01.01) sunflower oil and  (21691.07.01) sesame seed oil.
+
+806; OTHER DOMESTIC/WILD MEAT PRODUCTS
+
+Currently "dried or salted meat" & "Other preserved/processed meat" were not  included. 
+
+1105; PREPARED TEA, COFFEE
+
+Removed tea leaves, and coffee (bean/ground), and instant coffee (powder) (121101) ("23912.02.01") as it was included in the 1102. 
+
+```{r}
+
+NPSDSS_code <- "1105"
+food <- "coffee|tea"
+group_code <- "^121"
+code <- c("121102","121201") 
+
+subset(hbs_nct, grepl(food, food_desc, ignore.case = T) &  # Selecting food w/i a food group
+         grepl(group_code, food_id)) %>% 
+  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
+  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
+  filter(!food_id %in% code) %>%  #Removing foods (by food_id)
+   mutate(N = (n/nn),                            # Getting HH per food id.
+         wt = N/sum(N),              # Getting weights for each food (contribution to total of that category)
+         itemcode = NPSDSS_code) %>% print()
+
+
+```
+
+
+805; WILD BIRDS AND INSECTS
+
+Wild birds and insects are missing the dictionary codes in BHS18. Excluded Grasshoppers ("21170.92.07", "21170.92.08") because missing THIAmcg, and it was reported consumed by low number of HHs.
+
+302; SWEETS
+
+Excluded ("118302", "118302") because the were first one duplicated dictionary code and the second one reported under other item (1102).
+
+```{r}
+NPSDSS_code <- "302"
+food <- "choco|sweets|cocoa|confe|chew"
+group_code <- "^118"
+code <- c("")
+
+subset(hbs_nct, grepl(food, food_desc, ignore.case = T) &  # Selecting food w/i a food group
+         grepl(group_code, food_id)) %>% 
+  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
+  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
+  filter(!food_id %in% code) %>%  #Removing foods (by food_id)
+   mutate(N = (n/nn),                            # Getting HH per food id.
+         wt = N/sum(N),              # Getting weights for each food (contribution to total of that category)
+         itemcode = NPSDSS_code) %>% print()
+
+```
+
+
+1108; WINE AND SPIRITS
+Alcoholic beverages were not found in HBS18. And, hence manually added. 
+
+#### Missing foods
+
+Need clarification and consumed by small no. of HHs. 
+
+1103; OTHER RAW MATERIALS FOR DRINKS
+810; PACKAGE FISH
+
+#### Output
+ 
+The variables in the dataset are:
+
+"food_id": Food unique identifier of the food list of the 2018 Household Budget Survey.
+"food_desc": Food description of the food list of the 2018 Household Budget Survey.
+"n.x": Number of HHs reported consuming that food item in the 2018 Household Budget Survey.
+"itemcode": Food unique identifier of the food list of the NPS-DSS 2019-2020.
+"item_desc": Food description of the food list of the  NPS-DSS 2019-2020.
+"ID_3": Unique identifer of the MAPS food dictionary.
+"FoodName_3": Unique food description of the MAPS food dictionary.
+"Confidence": Confidence of the matches between the food consumed and the food dictionary.
+"nn": number of food in the dictionary reported for that item in 2018 Household Budget Survey.
+"N": allocation factor (n.x/N).
+"wt": weight for calculating food matches
+"N_HH": Number of HHs reported consuming that food item in
+
+**Output**: A dataset with the food listed as consumed and their corresponding matches according to the food dictionary which is ready to be matched with the FCTs
+
