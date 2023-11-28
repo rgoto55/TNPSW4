@@ -1,5 +1,5 @@
 
-## This script extract and explore the food list of the TZ HCES dataset
+## This script extracts and explores the food list of the TZ HCES dataset
 
 
 #Library loading

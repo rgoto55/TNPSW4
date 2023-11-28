@@ -9,20 +9,20 @@ rm(list = ls())
 library(dplyr)
 library(stringr)
 library(tidyr)
-#library(tidyverse)
-library(data.table)
+# library(tidyverse)
+# library(data.table)
 #library(openxlsx) # important link: https://www.rdocumentation.org/packages/openxlsx/versions/4.2.5.1
 
 # Loading data
 
 # HBS18 cleaned
+# This finds the most recent version of the HBS18
 file <-  sort(grep("hbs18-tznct-weights", list.files(here::here("inter-output")),
                            value = TRUE), decreasing = TRUE)[1]
 hbs_nct <- readRDS(here::here("inter-output", file))
 names(hbs_nct)
 
 # TZ HCES W4 food list
-# Saving the food items, frequency of consumption & perc. Wave 4 
 food_consumed <- readRDS(here::here("inter-output", "tz-hces-w4_food-list_v.1.0.0.rds"))
 
 # Food dictionary
@@ -705,7 +705,7 @@ for(i in 1:length(food)){
 # Checking foods w/o dict id
 output_df %>% filter(is.na(ID_3))
 
-# Adding manually values for the missing & fixing other:
+# Adding manually values for the missing & fixing other ----
 
 # Other raw materials (NA), package fish (NA)
 # Sweets, Wheat and barley & Wine and spirits

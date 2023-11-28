@@ -5,20 +5,20 @@ library(dplyr)
 library(NutritionTools) # this substitute the Fuzzy_Matcher script
 
 # Loading data 
-tz06 <- read.csv(here::here("data", "TZ08_tidied_FCT_v2.csv")) %>% 
+tz08 <- read.csv(here::here("data", "TZ08_tidied_FCT_v2.csv")) %>% 
   rename(VITB12mcg = "VITB12mg") #wrong units
 
 #fcts <- read.csv(here::here("data", "FCTs_dict_compiled_v1.0.0.csv"))
 dictionary.df <- readRDS(here::here("metadata", "dictionary.df.rds"))
 
 # Checking data
-head(tz06)
+head(tz08)
 
 # Changing data type
-#tz06$fdc_id <- as.character(tz06$fdc_id)
+#tz08$fdc_id <- as.character(tz08$fdc_id)
 
 # First matches (fuzzy)
-#Fuzzy_Matcher(tz06[,c(1:2)], dictionary.df[,c(7,9)])
+#Fuzzy_Matcher(tz08[,c(1:2)], dictionary.df[,c(7,9)])
 
 # Loading the matches performed with fuzzy
 tz_matches  <- read.csv(here::here("inter-output", "tz_dict_matches.csv"))
@@ -43,7 +43,7 @@ dictionary.df %>% filter(grepl("", FoodName_3, ignore.case = TRUE) &
 dictionary.df %>% filter(grepl("^1214.04", ID_3, ignore.case = TRUE))
 dictionary.df %>% filter(grepl("^2630", ID_1, ignore.case = TRUE))
 tz_matches %>% filter(grepl("1234.02", ID_3, ignore.case = TRUE))
-#tz06_dict %>% filter(grepl("1290.9.027", ID_3, ignore.case = TRUE))
+#tz08_dict %>% filter(grepl("1290.9.027", ID_3, ignore.case = TRUE))
 #output_df %>% filter(grepl("1234.03", ID_3, ignore.case = TRUE))
 
 class(tz_matches$fdc_id)
@@ -51,7 +51,7 @@ class(tz_matches$fdc_id)
 
 # Checking missing dict codes (from fuzzy) in FCT
 
-tz06 %>% left_join(., tz_matches) %>% 
+tz08 %>% left_join(., tz_matches) %>% 
   filter(is.na(ID_3) &  Food_Group_Code == "A1") # %>% View()
 
 dict_codes <- tribble(
@@ -106,18 +106,18 @@ sum(duplicated(dict_codes[,1]))
 dict_codes[which(duplicated(dict_codes[,1])),]
 
 # Changing data type
-tz06$fdc_id <- as.character(tz06$fdc_id)  
+tz08$fdc_id <- as.character(tz08$fdc_id)  
 
 # Merging FCT & dict codes ()
-tz06_dict <- tz06 %>% left_join(., dict_codes) %>% 
+tz08_dict <- tz08 %>% left_join(., dict_codes) %>% 
   relocate(., c("ID_3", "Confidence"), .after = food_description) %>% 
   rename(food_desc = "food_description")
 
 # Excluding items (ID_3 to NA) - Quality issues
-tz06_dict$ID_3[grepl("Sweet potato", tz06_dict$food_desc, ignore.case = TRUE)] <- NA
+tz08_dict$ID_3[grepl("Sweet potato", tz08_dict$food_desc, ignore.case = TRUE)] <- NA
 
 # Checking values
-tz06_dict %>% 
+tz08_dict %>% 
   filter(grepl("pump", food_desc, ignore.case = TRUE) &
            grepl("", food_desc, ignore.case = TRUE)) # %>%  
 #   select(fdc_id , food_desc, ID_3, ENERCkcal, VITA_RAEmcg, FAT_g) %>% 

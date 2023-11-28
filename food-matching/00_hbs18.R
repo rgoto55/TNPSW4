@@ -8,7 +8,10 @@
 library(tidyverse)
 
 # Data loading
-hbs_nct <- read.csv(here::here("data", "HBS18_TZNCT_v.2.0.1.csv")) %>% 
+# This finds the most recent version of the HBS18
+file <-  sort(grep("HBS18_TZNCT", list.files(here::here("metadata")),
+                   value = TRUE), decreasing = TRUE)[1]
+hbs_nct <- readRDS(here::here("metadata", file)) %>% 
   filter(!is.na(ID_3))
 
 dictionary.df <- readRDS(here::here("metadata", "dictionary.df.rds"))
@@ -24,6 +27,14 @@ names(hbs_nct) <- c("food_id", "food_desc", "n" , "dict_testsample_code", "FoodN
 # Fixing dict codes (cassava flour & pork lard)
 hbs_nct$dict_testsample_code[hbs_nct$dict_testsample_code == "23170.01"] <-  "23170.01.01"
 hbs_nct$dict_testsample_code[hbs_nct$dict_testsample_code == "F1243.02"] <-  "21521.01"
+
+
+# Fixing codes
+# Checking duplicated codes (used same item for different indv. reported foods)
+# Rice - reported different varieties (we used the same code)
+# Sugary drinks (cola, fanta, etc.) - reported as indiv. but used the same code
+# Chicken - 4 different items (frozen, live, etc.)
+# Jam - 4 kinds (used the same item)
 
 # Excluding problematic items (missing in FCTs)
 
@@ -64,12 +75,7 @@ hbs_short %>% filter(is.na(FoodName_3))
 # TODO: Removing foods w/o info on the dictionary
 #hbs_nct <- hbs_nct %>% filter(!is.na(FoodName_3))
 
-# Fixing codes
-# Checking duplicated codes (used same item for different indv. reported foods)
-# Rice - reported different varieties (we used the same code)
-# Sugary drinks (cola, fanta, etc.) - reported as indiv. but used the same code
-# Chicken - 4 different items (frozen, live, etc.)
-# Jam - 4 kinds (used the same item)
+
 
 hbs_short %>% count(dict_testsample_code, FoodName_3) %>% arrange(desc(n))
 
