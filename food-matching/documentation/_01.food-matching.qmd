@@ -1,38 +1,41 @@
 ---
-title: "01. Food matching"
-format: html
+title: "Development of the Nutrient Conversion Table for Tanzania National Panel Survey 2019-2020"
+format: 
+  html:
+    code-overflow: wrap
+    embed-resources: true
 editor: source
 ---
 
-**Change log**
+### Food matching
 
 
-v.2.1.0 - Removed some duplicated items. 
-v.2.0.0 - Changed the FCT preference order to KE18> WA19> US19 > TZ06 
-v.1.1.0. - Added FoodName_3 for all the food items, and re-organised the dataset, rice (husked) changed to white rice, excluded duplicated values in item 1102, changed tea dry to tea leaves, excluded (HBS:"117110") from item 603. 
-v.1.0.7. - Excluded: herbal tea (too many missing values),  jambolan from fruits (missing VITA_RAEmcg), excluded grasshoppers (missing THIAmcg)
-v.1.0.6 - Excluded sunflower and sesame seed from selection used for "1001. cooking oil". Fixed typo that duplicated paddy rice.
+```{r setting-up, warning=FALSE, message=FALSE}
+
+# Loading libraries & functions
+library(dplyr) # data wrangling
+library(stringr) # string manuplation
+library(tidyr) # data cleaning
+
+# Loading data
+
+# HBS18 cleaned
+# This finds the most recent version of the HBS18
+file <-  sort(grep("hbs18-tznct-weights", list.files(here::here("food-matching", "inter-output")),
+                           value = TRUE), decreasing = TRUE)[1]
+hbs_nct <- readRDS(here::here("food-matching","inter-output", file))
+
+# TZ HCES W4 food list
+food_consumed <- readRDS(here::here("food-matching","inter-output", "tz-hces-w4_food-list_v.1.0.0.rds"))
+
+# Food dictionary
+dictionary.df <- readRDS(here::here("food-matching","metadata", "dictionary.df.rds"))
+
+```
 
 
-## Food matching
+#### Step 1: Getting the list of foods
 
-**Objective:** To provide the nutrient content information of the food reported as consumed in the TZ HCES survey (TZ HCES NCT). 
-
-**Output**: A dataset with the food listed as consumed and their corresponding nutrient values. 
-
-The food matching is performed using the following scripts:
-
-01_food-list
-02_weights
-03_tz20_nct
-
-Supporting & cleaning scripts are: 
-
-00_hbs18.R
-00_tz06.R
-
-
-### Step 1: Getting the list of foods
 
 We would extract the list of foods and the number of HH reporting consumption. That would give us an idea of the importance of the foods and their influence in the final results. 
 
@@ -42,16 +45,18 @@ The top 10 items are reported to be consumed by more than 50% of the HHs, wherea
 
 Note that in the Wave 5, there is one food item in the list that is not reported "consumed" by any HHs, hence, the final food list goes from 60 to 59 food items. That is not the case for Wave 4. 
 
-**Table 1**: A dataset with the list of food reported as consumed and the number of HHs reporting consuming that food. 
+In @tab-1 we can see the list of food reported as consumed,  the number of household reporting consuming that food and the percentage. 
 
-```{r, table-1}
+```{r label = tab-1}
 
-knitr::kable(food_consumed)
+knitr::kable(food_consumed, digits = 3)
 
 ```
 
 
-### Step 2: Matching food items
+#### Step 2: Matching food items to the food dictionary
+
+
 
 **Change log**
 
@@ -59,55 +64,81 @@ knitr::kable(food_consumed)
 |---|---|---|
 |v.2.0.0| Removed the duplicated (using hbs18 weights v.3.0.0)| 2023-11-27|
 
+
 In order to match food reported as consumed with their corresponding nutrient values in diverse FCTs, we are first matching them to our standardised food dictionary (dictionary.df). This allow for easy matching between different datasets, and increases the interoperability with projects. More information about the food dictionary can be found in the MAPS project repository. 
 
-#### Single food matches
+
+##### Single food matches
+
 
 Single food matches are those foods that are easily identifiable and have a one-to-one match in the FCT. For instance, salt.
 
 1003; SALT; 1699.02
-102; RICE (HUSKED); 23161.02.01 - Not included brown rice, as it was included in "paddy". 
-1101; TEA DRY; 1620.01 --> We are using tea leaves, but check, specially EP.
-201; CASSAVA FRESH; 1520.01.01
-206; COOKING BANANAS, PLANTAIN; 1313.01
-205; IRISH POTATOES; 1510.01
-701; RIPE BANANAS; 1312.01
-807; EGGS; 231.01 --> This one needs to be checked, maybe we need to include other animals eggs, i.e. duck, quail, etc. Although according to BHS18, only one HH reported the use of "other eggs".
-704; SUGARCANE; 1802.01
-103; MAIZE (GREEN, COB); 1290.01.01
-1107; LOCAL BREWS: No information on local beers or other alcoholic beverages was provided on the BHS18. We used "sorghum beer" (24310.04.01)
-1103; 
-1106; BOTTLED BEER: No information on local beers was provided on the BHS18. (24310.01.01) 
-1108;
 
-#### Multiple food matches
+102; RICE (HUSKED); 23161.02.01 - Not included brown rice, as it was included in "paddy". 
+
+1101; TEA DRY; 1620.01 --> We are using tea leaves, but check, specially EP.
+
+201; CASSAVA FRESH; 1520.01.01
+
+206; COOKING BANANAS, PLANTAIN; 1313.01
+
+205; IRISH POTATOES; 1510.01
+
+701; RIPE BANANAS; 1312.01
+
+807; EGGS; 231.01 --> This one needs to be checked, maybe we need to include 
+other animals eggs, i.e. duck, quail, etc. Although according to BHS18, only one HH reported the use of "other eggs".
+
+704; SUGARCANE; 1802.01
+
+103; MAIZE (GREEN, COB); 1290.01.01
+
+1107; LOCAL BREWS: No information on local beers or other alcoholic beverages was provided on the BHS18. We used "sorghum beer" (24310.04.01)
+
+1106; BOTTLED BEER: No information on local beers was provided on the BHS18. (24310.01.01) 
+
+
+##### Multiple food matches
+
 
 Multiple matches are those foods that are food groups (i.e.,  a list of foods) or those that are one food but it possible to match to more than one item due to insufficient information in the food description (e.g., apple - apple, apple and apple, red). 
 
 According to FAO/ INFOODS Guidelines (@ref), when performing one-to-many matches, weighted mean is preferred. The consumption of the top ten food items (at least) should be done using weighted mean. The weights were derived from the information reported in the Tanzania HCES: 2018 Household Budget Survey, when possible, as more detailed food list was provided. 
 
-For example: 
+For example: For the food item "COOKING OIL" (NPS15:1001), we identified all the "oil" reported consumed in the HBS18. Then, we reviewed the items, and select or exclude those that were not sensible matches. 
 
-1001; COOKING OIL
 
-We are excluding butter oil (115101) which was coded as ghee ("22241.02.01") because it was reported in a different food item (1002) "BUTTER, MARGARINE, GHEE AND OTHER FAT PRODUCTS". 
+```{r cooking-oil, message= FALSE}
 
-```{r cooking-oil, }
-
-subset(hbs_nct, str_detect(food_desc, " oil")) %>% #Selecting oils
-  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
-  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
-  filter(str_detect(dict_testsample_code, "^216")) %>%  #Selecting only oils (exc. butter)
-  mutate(N = (n/nn),                            # Getting HH per food id.
-         wt = N/sum(N)) %>%                     # Getting weights for each oil (contributrion to total)
-  View()              
-
+subset(hbs_nct, str_detect(food_desc, " oil")) %>%    # Selecting oils
+  add_count(food_id)  %>%           # Counting indiv. dict. codes per food id.
+   arrange(desc(n)) %>% knitr::kable()
 
 ```
 
+
+The description of the variables can be found [here]{@sec-data.hbs18}
+
+
+For instance, for "cooking oil", we excluded "butter oil" (HBS18:115101) which was coded as ghee ("22241.02.01") because it was used in a different food item  "Butter, margarine, **ghee**, and other fat products" (NPS15:1002). Finally, to get the weights, we calculated as the number of food items per each food reported in HBS18 divided by the number of household reporting consuming that food item.  
+
+
+```{r cooking-oil2, warning= FALSE}
+
+subset(hbs_nct, str_detect(food_desc, " oil")) %>% #Selecting oils
+  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
+  filter(str_detect(dict_testsample_code, "^216")) %>%  #Selecting only oils (exc. butter)
+  mutate(N = (n/nn),                            # Getting HH per food id.
+         wt = N/sum(N)) %>%  # Getting weights for each oil (contributrion to total)
+knitr::kable(digits = 2)
+
+```
+
+
 Now we are standardising this process to get the information for each multiple item food entry.
 
-##### Weights 
+###### Generating the weights 
 
 The weights were generated based on the food reported in the TZ HBS, which was a different HCES performed in Tanzania (Information regarding that dataset, and the corresponding output can be found here). We used that HCES because it provided more detailed information on the food consumed at the household level as it used a longer list of food items (n=`r length(unique(hbs_nct$food_id))`). This information was used to inform the food matches in the HCES. 
 
@@ -120,7 +151,7 @@ Generating the matrix to store the information above:
  - dictionary ids. to be removed from the selection ("code")
  
 
-##### Matching decission
+###### Matching decisions
 
 
 1001; COOKING OIL
@@ -128,16 +159,12 @@ Generating the matrix to store the information above:
 We are excluding ghee ("22241.02.01") because it was reported in a different food item (1002) "BUTTER, MARGARINE, GHEE AND OTHER FAT PRODUCTS". 
 
 
-601; ONIONS, TOMATOES, CARROTS AND GREEN PEPPER, OTHER VIUNGO; c("1253.02.01", "1253.01.01", #onion "1234.03", "1234.02", "1290.9.05", #tomato incl. bitter
-"1251.01", #carrot
-"1652.01" ) #green pepper
+601; ONIONS, TOMATOES, CARROTS AND GREEN PEPPER, OTHER VIUNGO; 
 
-ONIONS, TOMATOES, CARROTS AND GREEN PEPPER, OTHER VIUNGO
-Excl. tomato preparations (tinned and sauce) - c("117302", "119102")
+"Other viungo" are normally considered other vegetables used for cooking relish/curry, according to our colleagues from TFNC. Hence, we included the items showed below. Excl. tomato preparations (tinned and sauce) - c("117302", "119102")
 
-"Other viungo" are normally considered other vegetables used for cooking relish/curry, according to our colleagues from TFNC. 
 
-```{r onion-toamto-test,}
+```{r onion-toamto-test}
 
 NPSDSS_code <- "601"
 food <- "onion|tomato|carrot|pepper"
@@ -146,18 +173,14 @@ code <- c("117302", "119102")
 
 subset(hbs_nct, grepl(food, food_desc, ignore.case = T) &  # Selecting food w/i a food group
          grepl(group_code, food_id)) %>% 
-  separate_rows(dict_testsample_code) %>%  #Getting indiv. dict. codes
-  add_count(food_id) %>%                  #Counting indiv. dict. codes per food id.
-  filter(!food_id %in% code) %>%  #Removing foods (by food_id)
-   mutate(N = (n/nn),                            # Getting HH per food id.
-         wt = N/sum(N),              # Getting weights for each food (contribution to total of that category)
-         itemcode = NPSDSS_code) %>% print()
+  filter(!food_id %in% code)   #Removing foods (by food_id)
 
 ```
 
-105; MAIZE (FLOUR); c("23120.03.02", "23120.03.01", "23120.03.03")
+105; MAIZE (FLOUR)
 
-In HBS18, maize flour was specified as "white" however here is not, and hence we need to add "yellow" maize flour, and well as refined, and unrefined. 
+In HBS18, maize flour was specified as "white" however here is not, and hence we need to add "yellow" maize flour. Hence, the final food items included will be `r toString(dictionary.df$FoodName_3[dictionary.df$ID_3 %in% c("23120.03.02", "23120.03.01", "23120.03.03")])`. This was done after the dataset was completed in the line 708 of `02_weights.R`: *Adding manually values for the missing & fixing other*. 
+
 
 
 301; SUGAR
@@ -432,31 +455,38 @@ subset(hbs_nct, grepl(food, food_desc, ignore.case = T) &  # Selecting food w/i 
 
 
 1108; WINE AND SPIRITS
+
 Alcoholic beverages were not found in HBS18. And, hence manually added. 
 
-#### Missing foods
+##### Missing foods
 
 Need clarification and consumed by small no. of HHs. 
 
 1103; OTHER RAW MATERIALS FOR DRINKS
+
 810; PACKAGE FISH
 
-#### Output
+
+##### Output
+
  
-The variables in the dataset are:
+**Secondary output**: A dataset with the food listed as consumed and their corresponding matches according to the food dictionary which is ready to be matched with the FCTs. The variables in the dataset are presented in the table X. 
 
-"food_id": Food unique identifier of the food list of the 2018 Household Budget Survey.
-"food_desc": Food description of the food list of the 2018 Household Budget Survey.
-"n.x": Number of HHs reported consuming that food item in the 2018 Household Budget Survey.
-"itemcode": Food unique identifier of the food list of the NPS-DSS 2019-2020.
-"item_desc": Food description of the food list of the  NPS-DSS 2019-2020.
-"ID_3": Unique identifer of the MAPS food dictionary.
-"FoodName_3": Unique food description of the MAPS food dictionary.
-"Confidence": Confidence of the matches between the food consumed and the food dictionary.
-"nn": number of food in the dictionary reported for that item in 2018 Household Budget Survey.
-"N": allocation factor (n.x/N).
-"wt": weight for calculating food matches
-"N_HH": Number of HHs reported consuming that food item in
+|Variable name| Variable description|
+|---|---|
+| `food_id` | Food unique identifier of the food list of the 2018 Household Budget Survey.|
+| `food_desc` | Food description of the food list of the 2018 Household Budget Survey.|
+| `n.x` | Number of HHs reported consuming that food item in the 2018 Household Budget Survey. |
+| `itemcode` | Food unique identifier of the food list of the NPS-DSS 2019-2020. |
+| `item_desc` | Food description of the food list of the  NPS-DSS 2019-2020. |
+| `ID_3` | Unique identifer of the MAPS food dictionary. |
+| `FoodName_3` | Unique food description of the MAPS food dictionary. |
+| `Confidence` | Confidence of the matches between the food consumed and the food dictionary. |
+| `nn` | Number of food in the dictionary reported for that item in 2018 Household Budget Survey. |
+| `N` | Allocation factor (n.x/N). |
+| `wt` | Weight for calculating food matches. |
+| `N_HH` | Number of HHs reported consuming that food item. |
 
-**Output**: A dataset with the food listed as consumed and their corresponding matches according to the food dictionary which is ready to be matched with the FCTs
+
+
 

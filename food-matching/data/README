@@ -1,0 +1,20 @@
+# README
+
+## Data provenance
+
+1. **National Panel Survey 2014-2015, Wave 4**. National Bureau of Statistics (NBS) [Tanzania]. 2015. National Panel Survey (NPS) - Wave 4, 2014 - 2015. Ref.TZA_2014_NPS-R4_v03_M. Downloaded from https://microdata.worldbank.org/index.php/catalog/2862 on 2023-11-28. Dar es Salaam, Tanzania: NBS. (www.nbs.go.tz). 
+
+2. **Food Composition Data**: 
+
+The harmonised and Food Compoistion Data Library can be obtained from the MAPS project repository (excluding the Tanzania Food Composition Table, 2006). The original Food Composition Tables and Databases were the following and can be found in their respective links:
+
+-  KE18: FAO/Government of Kenya. 2018. Kenya Food Composition Tables. Nairobi, 254 pp. http://www.fao.org/3/I9120EN/i9120en.pdf
+
+-  WA19: Vincent, A., Grande, F., Compaoré, E., Amponsah Annor, G., Addy, P.A., Aburime, L.C., Ahmed, D., Bih Loh, A.M., Dahdouh Cabia, S., Deflache, N., Dembélé, F.M., Dieudonné, B., Edwige, O.B., Ene-Obong, H.N., Fanou Fogny, N., Ferreira, M., Omaghomi Jemide, J., Kouebou, P.C., Muller, C., Nájera Espinosa, S., Ouattara, F., Rittenschober, D., Schönfeldt, H., Stadlmayr, B., van Deventer, M., Razikou Yiagnigni, A. & Charrondière, U.R. 2020. FAO/INFOODSFoodCompositionTableforWesternAfrica(2019)UserGuide&CondensedFoodCompositionTable/Tabledecompositiondesaliments FAO/INFOODSpourl’Afriquedel’Ouest(2019)Guided’utilisation&tabledecompositiondesalimentscondensée. Rome, FAO
+
+-  US19: (dataset) Haytowitz, David B.; Ahuja, Jaspreet K.C.; Wu, Xianli; Somanchi, Meena; Nickle, Melissa; Nguyen, Quyen A.; Roseland, Janet M.; Williams, Juhi R.; Patterson, Kristine Y.; Li, Ying; Pehrsson, Pamela R. (2019). USDA National Nutrient Database for Standard Reference, Legacy Release. Nutrient Data Laboratory, Beltsville Human Nutrition Research Center, ARS, USDA. https://doi.org/10.15482/USDA.ADC/1529216. Accessed 2023-11-28.
+
+-  TZ08: Lukmanji Z., Hertzmark E., Mlingi N., Assey V., Ndossi G., Fawzi W., Tanzania food composition Tables. MUHAS- TFNC, HSPH, Dar es Salaam Tanzania-2008 The food composition tables may be available on http/: http://www.hsph.harvard.edu/nutritionsource/more/food-tables/index.html http://www.hsph.harvard.edu/nutritionsource/files/tanzania-food-composition-tables.pdf
+
+
+

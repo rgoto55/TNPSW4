@@ -34,7 +34,7 @@ names(output_df)
 n <- ncol(output_df)
 
 
-source("tz06_dict.R") # TZ FCT
+source("tz08_dict.R") # TZ FCT
 # Taking the most updated version of the fct:
 file_name <-  sort(grep("FCTs_dict_compiled", 
                            list.files(here::here("data")),
@@ -46,9 +46,9 @@ fct_dict <- read.csv(here::here("data", file_name)) %>%
 
 
 # Generating NCT: Matching with FCT
-names(tz06_dict) 
+names(tz08_dict) 
 
-# Matches w/ KE18> WA19> US19 > TZ06 
+# Matches w/ KE18> WA19> US19 > TZ08 
 
 # output_df %>% 
 #   filter(is.na(ENERCkcal)) #%>% View()
@@ -67,9 +67,9 @@ US19_match <- output_df %>%
   left_join(., fct_dict %>% filter(source_fct == "US19"), by = "ID_3") %>%
   filter(!is.na(ENERCkcal))
 
-TZ06_match <- output_df %>% 
+TZ08_match <- output_df %>% 
   filter(!ID_3 %in% c(KE18_match$ID_3, WA19_match$ID_3, US19_match$ID_3)) %>% 
-  left_join(., tz06_dict %>% filter(!is.na(ID_3)), by = "ID_3") %>% 
+  left_join(., tz08_dict %>% filter(!is.na(ID_3)), by = "ID_3") %>% 
      filter(!is.na(ENERCkcal))
   
 # WA19_match <- output_df %>% 
@@ -86,14 +86,14 @@ TZ06_match <- output_df %>%
 #   left_join(., fct_dict %>% filter(source_fct == "US19"), by = "ID_3") %>%
 #   filter(!is.na(ENERCkcal))
 #   
-# TZ06_match <- output_df %>% 
+# TZ08_match <- output_df %>% 
 #   left_join(., fct_dict %>% filter(source_fct == "KE18"), by = "ID_3") %>%
 #   filter(is.na(ENERCkcal)) %>% select(1:n) %>% 
 #   left_join(., fct_dict %>% filter(source_fct == "WA19"), by = "ID_3") %>% 
 #   filter(is.na(ENERCkcal)) %>%  select(1:n) %>% 
 #   left_join(., fct_dict %>% filter(source_fct == "US19"), by = "ID_3") %>%
 #   filter(is.na(ENERCkcal)) %>%  select(1:n) %>% 
-#   left_join(., tz06_dict %>% filter(!is.na(ID_3)), by = "ID_3") %>% 
+#   left_join(., tz08_dict %>% filter(!is.na(ID_3)), by = "ID_3") %>% 
 #   filter(!is.na(ENERCkcal))
 
 
@@ -103,7 +103,7 @@ TZ06_match <- output_df %>%
 
 grep("match$",ls(),value = TRUE)
 
-all_matches <- data.table::rbindlist(list(KE18_match, US19_match, WA19_match, TZ06_match), use.names = T, fill = T)
+all_matches <- data.table::rbindlist(list(KE18_match, US19_match, WA19_match, TZ08_match), use.names = T, fill = T)
 
 all_matches %>% 
      filter(is.na(ENERCkcal)) #%>% View()
