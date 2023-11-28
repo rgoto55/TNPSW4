@@ -52,3 +52,7 @@ rsconnect/
 
 food-matching/*/*.csv
 food-matching/*/*.rds
+
+# Documentation
+food-matching/documentation/*.html
+
