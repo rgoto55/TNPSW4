@@ -1,0 +1,139 @@
+---
+title: "Datacleaning"
+author: "R Goto"
+date: "2023-11-27"
+output: html_document
+---
+
+## 3.1. Settings
+```{r eval=FALSE}
+library(tidyverse)
+library(summarytools)
+options(scipen = 10, digits=3) 
+```
+
+## 3.2. Dataset
+**hhcons.csv** - see Section 1.3.3. (60 food item consumption in 3290HHs)
+**hhafe.csv** - see Section 2.6.5. (total AFE in each HH)
+```{r eval=FALSE}
+hhcons <- read_csv("hhcons.csv")
+hhafe <- read_csv("hhafe.csv")
+```
+
+## 3.3. Outliers
+### 3.3.1. calculate food consumption amount in grams/day per AFE for 60 food items in HHs
+```{r eval=FALSE}
+afecons <- left_join(hhcons, hhafe, by='y4_hhid')
+
+afecons <- afecons %>% 
+  mutate(hh_g_afe=cons_g_hh/afehh/7) # calculate food consumption in grams per day per AFE for each 60 food items 
+
+# identify HHs which did not calculate food consumption amount in grams/day per AFE for 60 food items in HHs
+
+count_hh_g_afe <- afecons %>% 
+  filter(hh_g_afe>0) %>% 
+  distinct(y4_hhid) %>% 
+  mutate(n3279 = 1)
+
+count_afecons <-  afecons %>% 
+  distinct(y4_hhid) %>% 
+  mutate(n3290 = 1)
+
+list11 <- left_join(count_afecons, count_hh_g_afe, by = 'y4_hhid')
+
+list11 <- list11 %>% 
+  filter(is.na(n3279)) %>% 
+  mutate(n11=1) %>% 
+  select(y4_hhid, n11)
+
+write_csv(afecons, "afecons.csv")
+```
+
+### 3.3.2. normalise the distribution using log10 transformation
+```{r eval=FALSE}
+afecons <- afecons %>% 
+  mutate(lghh_g_afe=log10(hh_g_afe)) 
+```
+
+### 3.3.3. get the summary to calculate cut-off point at +2SDs
+```{r eval=FALSE}
+dfcut <- afecons %>% 
+  group_by(itemcode, itemname) %>%
+  summarise(
+    mean = mean(lghh_g_afe, na.rm = TRUE),
+    median = median(lghh_g_afe, na.rm = TRUE),
+    sd = sd(lghh_g_afe, na.rm = TRUE),
+    max = max(lghh_g_afe, na.rm = TRUE)) 
+
+dfcutoff <- dfcut %>% 
+  mutate(sd2=mean+sd*2) %>% 
+  select(itemcode, sd2)
+```
+
+### 3.3.4. check each values whether it is in or out from the cut-off point
+```{r eval=FALSE}
+dfout <- left_join(afecons, dfcutoff, by="itemcode")
+
+dfinout <- dfout %>% 
+  mutate(dif2 = sd2 - lghh_g_afe) %>% 
+  mutate(inout2 = ifelse(dif2>0, 1, 2))  # in = 1, out = 2
+
+view(dfSummary(dfinout))   # outliers 1.7%
+```
+
+### 3.3.5. count frequency of food consumption in the HHs
+
+```{r eval=FALSE}
+foodfreq <- dfinout %>% 
+  group_by(itemcode, itemname) %>% 
+  count(cons_yn) %>% 
+  filter(cons_yn==1) %>% 
+  arrange(desc(n))
+```
+
+### 3.3.6. #810 PACKAGE FISH (n=2) cannot calculate median to replace 
+- one outlier in package fish (n=2) - replace unit
+```{r eval=FALSE}
+packf <- afecons %>% 
+  filter(itemcode==810 & cons_yn==1)
+
+afecons$cons_unit[afecons$y4_hhid=='6897-001'] <- 2
+afecons$conv_fac[afecons$y4_hhid=='6897-001'] <- 1
+afecons$cons_g[afecons$y4_hhid=='6897-001'] <- 1500
+afecons$cons_g_hh[afecons$y4_hhid=='6897-001'] <- 1500
+```
+
+### 3.3.7. calculate median to replace outliers
+```{r eval=FALSE}
+dfinout2 <- dfinout %>% 
+  select(y4_hhid, itemcode, inout2)  # making a list of in and out from +2SDs
+
+afeconsA <- left_join(afecons, dfinout2, by = c('y4_hhid', 'itemcode'))
+
+repmed <- afeconsA %>% 
+  filter(inout2==1)%>%   # within the cases of in, median of each food item was calculated
+  group_by(itemcode) %>% 
+  summarise(median = median(hh_g_afe, na.rm = TRUE))
+
+afeconsB <- left_join(afeconsA, repmed, by = 'itemcode')
+
+afeconsC <- afeconsB %>%
+  mutate(hh_g_afe_c = if_else(inout2==1, hh_g_afe, if_else(inout2==2, median, NA))) # median replaced
+
+afeconsD <- left_join(afeconsC, list11, by = 'y4_hhid') # pick up 11HHs
+afeconsE <- afeconsD %>% 
+  mutate(hh_g_afe_c1 = if_else(n11==1&cons_g_hh>0, median, NA))  # replaced median for food consumption
+
+# combine values of hh_g_afe_c and hh_g_afe_c1 in one column g_afe
+afeconsF <- afeconsE %>% 
+  rowwise() %>% 
+  mutate(g_afec=if_else(is.na(hh_g_afe_c)&is.na(hh_g_afe_c1), NA, sum(hh_g_afe_c, hh_g_afe_c1, na.rm=TRUE)))
+
+# organised cleaned dataset with food consumption in g per day per AFE (g_afec)
+f60afec <- afeconsF %>% 
+  select(y4_hhid, itemcode, itemname, cons_yn, afehh, g_afec)
+
+write_csv(f60afec, "f60afec.csv")
+```
+
+
