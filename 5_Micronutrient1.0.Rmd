@@ -1,0 +1,218 @@
+---
+title: "estimation of micronutrient intakes"
+author: "R Goto"
+date: "2023-11-30"
+output: html_document
+---
+## 5.1. Settings
+```{r eval=FALSE}
+library(tidyverse)
+library(summarytools)
+library(survey)
+library(srvyr)
+```
+
+## 5.2. Dataset
+- open data of cleaned 60 food consumption per day per AFE and weighting factors
+```{r eval=FALSE}
+f60afec <- read_csv("f60afec.csv")  # cleaned data of 60 food consumption per day per AFE
+dataAw <- read_csv("dataAw.csv")  # data including weighting factors
+TZFCT3 <- read_csv("TFNC_NCT_NTPS20_v.3.0.0.csv") # organised food composition table (FCT) for 60 food items
+```
+
+## 5.3. Calculate estimated micronutrient intakes
+```{r eval=FALSE}
+# organise FCT
+names(TZFCT3)
+TZFCT3 <- TZFCT3 %>% 
+  rename("itemcode"="item_id",
+         "itemname"="item_desc",
+         "VAmcg"="VITA_RAEmcg",
+         "FOLmcg"="FOLmcg_standardised",
+         "VB12mcg"="VITB12mcg")
+
+TZFCT3 <- TZFCT3 %>% 
+  select(itemcode, FEmg, ZNmg, VAmcg, FOLmcg, VB12mcg)
+
+write_csv(TZFCT3, 'TZFCT3.csv')
+
+# merge TZFCT with estimated food consumption in g
+nf60afec <- left_join(f60afec, TZFCT3, by = "itemcode")
+
+# calculate estimated micronutrient intakes per day per AFE in HHs considering that FCT values are calculated nutrient amount per 100g
+
+options(scipen = 10, digits=2)
+
+nf60afec <- nf60afec %>% 
+  mutate(feafe = g_afec*FEmg*0.01,
+         znafe = g_afec*ZNmg*0.01,
+         vaafe = g_afec*VAmcg*0.01,
+         folafe = g_afec*FOLmcg*0.01,
+         vb12afe = g_afec*VB12mcg*0.01)
+
+# calculate sum of nutrients from 60 food items by HHs
+nafet <- nf60afec %>% 
+  group_by(y4_hhid) %>% 
+  summarise(feafet=sum(feafe, na.rm=TRUE),
+            znafet=sum(znafe, na.rm=TRUE),
+            vaafet=sum(vaafe, na.rm=TRUE),
+            folafet=sum(folafe, na.rm=TRUE),
+            vb12afet=sum(vb12afe, na.rm=TRUE))
+
+write_csv(nafet, "nafet.csv")
+
+# weighting
+nmA <- left_join(nafet, dataAw, by = 'y4_hhid')   # merge with weighting factor
+
+nmA_w <- nmA %>%
+  as_survey_design(ids = clusterid, 
+                   weights = y4_weights, 
+                   strata = strataid,
+                   nest=TRUE)
+
+# get estimated micronutrient intakes by 60 food items in median and the interquartile range (IQR)
+# in national (Table 4)
+options(scipen = 4, digits=4)
+nmA_wmd <- nmA_w %>%
+  summarise(femd = survey_median(feafet, na.rm=TRUE),
+            feqt = survey_quantile(feafet, c(0.25, 0.75), na.rm=TRUE),            ,
+            znmd = survey_median(znafet, na.rm=TRUE),
+            znqt = survey_quantile(znafet, c(0.25, 0.75), na.rm=TRUE),
+            vamd = survey_median(vaafet, na.rm=TRUE),
+            vaqt = survey_quantile(vaafet, c(0.25, 0.75), na.rm=TRUE),
+            folmd = survey_median(folafet, na.rm=TRUE),
+            folqt = survey_quantile(folafet, c(0.25, 0.75), na.rm=TRUE),
+            vb12md = survey_median(vb12afet, na.rm=TRUE),
+            vb12qt = survey_quantile(vb12afet, c(0.25, 0.75), na.rm=TRUE)
+            )
+
+# by urban/rural
+nmA_wmdur <- nmA_w %>%
+  group_by(clustertype) %>% 
+  summarise(femd = survey_median(feafet, na.rm=TRUE),
+            feqt = survey_quantile(feafet, c(0.25, 0.75), na.rm=TRUE),
+            znmd = survey_median(znafet, na.rm=TRUE),
+            znqt = survey_quantile(znafet, c(0.25, 0.75), na.rm=TRUE),
+            vamd = survey_median(vaafet, na.rm=TRUE),
+            vaqt = survey_quantile(vaafet, c(0.25, 0.75), na.rm=TRUE),
+            folmd = survey_median(folafet, na.rm=TRUE),
+            folqt = survey_quantile(folafet, c(0.25, 0.75), na.rm=TRUE),
+            vb12md = survey_median(vb12afet, na.rm=TRUE),
+            vb12qt = survey_quantile(vb12afet, c(0.25, 0.75), na.rm=TRUE)
+            )
+
+# by strata
+nmA_wmddo <- nmA_w %>%
+  group_by(domain) %>% 
+  summarise(femd = survey_median(feafet, na.rm=TRUE),
+            feqt = survey_quantile(feafet, c(0.25, 0.75), na.rm=TRUE),
+            znmd = survey_median(znafet, na.rm=TRUE),
+            znqt = survey_quantile(znafet, c(0.25, 0.75), na.rm=TRUE),
+            vamd = survey_median(vaafet, na.rm=TRUE),
+            vaqt = survey_quantile(vaafet, c(0.25, 0.75), na.rm=TRUE),
+            folmd = survey_median(folafet, na.rm=TRUE),
+            folqt = survey_quantile(folafet, c(0.25, 0.75), na.rm=TRUE),
+            vb12md = survey_median(vb12afet, na.rm=TRUE),
+            vb12qt = survey_quantile(vb12afet, c(0.25, 0.75), na.rm=TRUE)
+            )
+
+```
+
+## 5.4. Calculate nutrient gap (Table 4)
+
+### 5.4.1. calculate the gap between estimated nutrient intakes and 25 percentile of the population
+# the 25 percentile of each nutrient was calculated in 5.3 and manually calculate the differences between the values and H-AR
+# H-AR for females aged 18-50 yrs (Allen et al., 2020): iron 22.4mg, zinc 10.2mg, VA 490mcg, folate 250mcg, VB12 2.0mcg
+- for example, 25 percentile of the iron intake nationally was 14.9mg/d/AFE. H-AR for female 18-50 yrs of age was 22.4mg, therefore the gap is 14.9-22.4=-7.5mg
+
+### 5.5. calculate the prevalance of micronutrient inadequecy in no fortification scenario (Table 5)
+```{r eval=FALSE}
+nafet <- nafet %>% 
+  mutate(znadq=if_else(znafet<10.2, "inadequate", "adequate"),
+         vaadq=if_else(vaafet<490, "inadequate", "adequate"),
+         foladq=if_else(folafet<250, "inadequate", "adequate"),
+         vb12adq=if_else(vb12afet<2.0, "inadequate", "adequate"))
+
+# weighting 
+nafet_w <- left_join(nafet, dataAw, by = 'y4_hhid')   # merge with weighting factor
+
+nafet_w <- nafet_w %>%
+  as_survey_design(ids = clusterid, 
+                   weights = y4_weights, 
+                   strata = strataid,
+                   nest=TRUE)
+
+# proportion at the zinc inadequacy
+options(digits=3)
+# nationally
+znadqn <- nafet_w %>%
+  group_by(znadq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+znadqur <- nafet_w %>%
+  group_by(clustertype, znadq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+znadqdo <- nafet_w %>%
+  group_by(domain, znadq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+# proportion at the VA inadequacy
+# nationally
+vaadqn <- nafet_w %>%
+  group_by(vaadq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+vaadqur <- nafet_w %>%
+  group_by(clustertype, vaadq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+vaadqdo <- nafet_w %>%
+  group_by(domain, vaadq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+# proportion at the folate inadequacy
+# nationally
+foladqn <- nafet_w %>%
+  group_by(foladq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+foladqur <- nafet_w %>%
+  group_by(clustertype, foladq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+foladqdo <- nafet_w %>%
+  group_by(domain, foladq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+# proportion at the VB12 inadequacy
+# nationally
+vb12adqn <- nafet_w %>%
+  group_by(vb12adq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+vb12adqur <- nafet_w %>%
+  group_by(clustertype, vb12adq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+vb12adqdo <- nafet_w %>%
+  group_by(domain, vb12adq) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

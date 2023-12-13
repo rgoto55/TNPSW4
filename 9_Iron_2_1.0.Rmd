@@ -1,0 +1,160 @@
+---
+title: "iron inadequacy -2 without maize flour fortification"
+author: "R Goto"
+date: "2023-12-03"
+output: html_document
+---
+## 9.1. Settings
+```{r eval=FALSE}
+library(tidyverse)
+library(summarytools)
+library(survey)
+library(srvyr)
+```
+
+## 9.2. Dataset
+```{r eval=FALSE}
+nafetF2 <- read_csv("nafetF2.csv")  # estimated micronutrient intake per day per AFE in status quo and full fortification scenarios WITHOUT maize flour fortification
+dataAw <- read_csv("dataAw.csv")  # data including weighting factors
+```
+options(scipen = 10, digits=3)
+
+## 9.3. Full probability approach for estimaing iron inadequecy (see Allen et al. 2006, pages 156-159)
+### 7.3.2. Status quo
+```{r eval=FALSE}
+names(nafetF2)
+nafetF2Aw <- left_join(nafetF2, dataAw, by = "y4_hhid")
+
+# in total
+fe_probpf <- nafetF2Aw %>%
+  mutate(feprob = case_when(
+    feafetpf <= 15 ~ 1,
+    feafetpf <= 16.7 & feafetpf > 15 ~ 0.96,
+    feafetpf <= 18.7 & feafetpf > 16.7 ~ 0.93,
+    feafetpf <= 21.4 & feafetpf > 18.7 ~ 0.85,
+    feafetpf <= 23.6 & feafetpf > 21.4 ~ 0.75,
+    feafetpf <= 25.7 & feafetpf > 23.6 ~ 0.65,
+    feafetpf <= 27.8 & feafetpf > 25.7 ~ 0.55,
+    feafetpf <= 30.2 & feafetpf > 27.8 ~ 0.45,
+    feafetpf <= 33.2 & feafetpf > 30.2 ~ 0.35,
+    feafetpf <= 37.3 & feafetpf > 33.2 ~ 0.25,
+    feafetpf <= 45.0 & feafetpf > 37.3 ~ 0.15,
+    feafetpf <= 53.5 & feafetpf > 45.0 ~ 0.08,
+    feafetpf <= 63.0 & feafetpf > 53.5 ~ 0.04,
+    feafetpf > 63 ~ 0)) %>% 
+  count(feprob) %>% 
+  mutate(feprev=feprob*n) %>% 
+  summarise(sumprov=sum(feprev))
+  
+# by urban/rural
+fe_probpfur <- nafetF2Aw %>%
+  mutate(feprob = case_when(
+    feafetpf <= 15 ~ 1,
+    feafetpf <= 16.7 & feafetpf > 15 ~ 0.96,
+    feafetpf <= 18.7 & feafetpf > 16.7 ~ 0.93,
+    feafetpf <= 21.4 & feafetpf > 18.7 ~ 0.85,
+    feafetpf <= 23.6 & feafetpf > 21.4 ~ 0.75,
+    feafetpf <= 25.7 & feafetpf > 23.6 ~ 0.65,
+    feafetpf <= 27.8 & feafetpf > 25.7 ~ 0.55,
+    feafetpf <= 30.2 & feafetpf > 27.8 ~ 0.45,
+    feafetpf <= 33.2 & feafetpf > 30.2 ~ 0.35,
+    feafetpf <= 37.3 & feafetpf > 33.2 ~ 0.25,
+    feafetpf <= 45.0 & feafetpf > 37.3 ~ 0.15,
+    feafetpf <= 53.5 & feafetpf > 45.0 ~ 0.08,
+    feafetpf <= 63.0 & feafetpf > 53.5 ~ 0.04,
+    feafetpf > 63 ~ 0)) %>% 
+  group_by(clustertype) %>% 
+  count(feprob) %>% 
+  mutate(feprev=feprob*n) %>% 
+  summarise(sumprov=sum(feprev)) 
+
+# by strata
+fe_probpfdo <- nafetF2Aw %>%
+  mutate(feprob = case_when(
+    feafetpf <= 15 ~ 1,
+    feafetpf <= 16.7 & feafetpf > 15 ~ 0.96,
+    feafetpf <= 18.7 & feafetpf > 16.7 ~ 0.93,
+    feafetpf <= 21.4 & feafetpf > 18.7 ~ 0.85,
+    feafetpf <= 23.6 & feafetpf > 21.4 ~ 0.75,
+    feafetpf <= 25.7 & feafetpf > 23.6 ~ 0.65,
+    feafetpf <= 27.8 & feafetpf > 25.7 ~ 0.55,
+    feafetpf <= 30.2 & feafetpf > 27.8 ~ 0.45,
+    feafetpf <= 33.2 & feafetpf > 30.2 ~ 0.35,
+    feafetpf <= 37.3 & feafetpf > 33.2 ~ 0.25,
+    feafetpf <= 45.0 & feafetpf > 37.3 ~ 0.15,
+    feafetpf <= 53.5 & feafetpf > 45.0 ~ 0.08,
+    feafetpf <= 63.0 & feafetpf > 53.5 ~ 0.04,
+    feafetpf > 63 ~ 0)) %>% 
+  group_by(domain) %>% 
+  count(feprob) %>% 
+  mutate(feprev=feprob*n) %>% 
+  summarise(sumprov=sum(feprev)) 
+```
+
+### 7.3.3. full fortification
+```{r eval=FALSE}
+# in total
+fe_probff <- nafetF2Aw %>%
+  mutate(feprob = case_when(
+    feafetff <= 15 ~ 1,
+    feafetff <= 16.7 & feafetff > 15 ~ 0.96,
+    feafetff <= 18.7 & feafetff > 16.7 ~ 0.93,
+    feafetff <= 21.4 & feafetff > 18.7 ~ 0.85,
+    feafetff <= 23.6 & feafetff > 21.4 ~ 0.75,
+    feafetff <= 25.7 & feafetff > 23.6 ~ 0.65,
+    feafetff <= 27.8 & feafetff > 25.7 ~ 0.55,
+    feafetff <= 30.2 & feafetff > 27.8 ~ 0.45,
+    feafetff <= 33.2 & feafetff > 30.2 ~ 0.35,
+    feafetff <= 37.3 & feafetff > 33.2 ~ 0.25,
+    feafetff <= 45.0 & feafetff > 37.3 ~ 0.15,
+    feafetff <= 53.5 & feafetff > 45.0 ~ 0.08,
+    feafetff <= 63.0 & feafetff > 53.5 ~ 0.04,
+    feafetff > 63 ~ 0)) %>% 
+  count(feprob) %>% 
+  mutate(feprev=feprob*n) %>% 
+  summarise(sumprov=sum(feprev))
+  
+# by urban/rural
+fe_probffur <- nafetF2Aw %>%
+  mutate(feprob = case_when(
+    feafetff <= 15 ~ 1,
+    feafetff <= 16.7 & feafetff > 15 ~ 0.96,
+    feafetff <= 18.7 & feafetff > 16.7 ~ 0.93,
+    feafetff <= 21.4 & feafetff > 18.7 ~ 0.85,
+    feafetff <= 23.6 & feafetff > 21.4 ~ 0.75,
+    feafetff <= 25.7 & feafetff > 23.6 ~ 0.65,
+    feafetff <= 27.8 & feafetff > 25.7 ~ 0.55,
+    feafetff <= 30.2 & feafetff > 27.8 ~ 0.45,
+    feafetff <= 33.2 & feafetff > 30.2 ~ 0.35,
+    feafetff <= 37.3 & feafetff > 33.2 ~ 0.25,
+    feafetff <= 45.0 & feafetff > 37.3 ~ 0.15,
+    feafetff <= 53.5 & feafetff > 45.0 ~ 0.08,
+    feafetff <= 63.0 & feafetff > 53.5 ~ 0.04,
+    feafetff > 63 ~ 0)) %>% 
+  group_by(clustertype) %>% 
+  count(feprob) %>% 
+  mutate(feprev=feprob*n) %>% 
+  summarise(sumprov=sum(feprev)) 
+
+# by strata
+fe_probffdo <- nafetF2Aw %>%
+  mutate(feprob = case_when(
+    feafetff <= 15 ~ 1,
+    feafetff <= 16.7 & feafetff > 15 ~ 0.96,
+    feafetff <= 18.7 & feafetff > 16.7 ~ 0.93,
+    feafetff <= 21.4 & feafetff > 18.7 ~ 0.85,
+    feafetff <= 23.6 & feafetff > 21.4 ~ 0.75,
+    feafetff <= 25.7 & feafetff > 23.6 ~ 0.65,
+    feafetff <= 27.8 & feafetff > 25.7 ~ 0.55,
+    feafetff <= 30.2 & feafetff > 27.8 ~ 0.45,
+    feafetff <= 33.2 & feafetff > 30.2 ~ 0.35,
+    feafetff <= 37.3 & feafetff > 33.2 ~ 0.25,
+    feafetff <= 45.0 & feafetff > 37.3 ~ 0.15,
+    feafetff <= 53.5 & feafetff > 45.0 ~ 0.08,
+    feafetff <= 63.0 & feafetff > 53.5 ~ 0.04,
+    feafetff > 63 ~ 0)) %>% 
+  group_by(domain) %>% 
+  count(feprob) %>% 
+  mutate(feprev=feprob*n) %>% 
+  summarise(sumprov=sum(feprev)) 
+```

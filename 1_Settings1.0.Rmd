@@ -1,0 +1,94 @@
+---
+title: "Data settings"
+author: "R Goto"
+date: "2023-11-15"
+output: html_document
+---
+
+## 1.1. Settings
+### 1.1.1 install all packages
+```{r eval=FALSE}
+install.packages("tidyverse")
+install.packages("summarytools")
+install.packages("survey")
+install.packages("srvyr")
+```
+
+### 1.1.2. settings
+```{r eval=FALSE}
+library(tidyverse)
+```
+
+## 1.2. Dataset
+
+### 1.2.1. download the files from 'National Panel Survey 2014-2015, Wave 4'
+https://microdata.worldbank.org/index.php/catalog/2862
+(accessed 15 November 2023)
+
+**hh_sec_j1.csv** - included household (HH) food consumption (60 food items) in the last 7 days (total 3352 HHs)
+**hh_sec_b.csv** - Roster of HH members and individual characteristics including: sex, age, eating food in the household in the last 7 days (5587 obs)
+
+### 1.2.2. open hh_sec_j1.csv and change variable names and select variables
+```{r eval=FALSE}
+dataJ1 <- read_csv("hh_sec_j1.csv") %>%
+  rename(cons_yn = hh_j01, cons_unit = hh_j02_1, cons_quant = hh_j02_2) %>%
+  select(y4_hhid, itemcode, cons_yn, cons_unit, cons_quant)
+```
+### 1.2.3. merge with food-id.csv to add IDs of 60 food items 
+- food-id.csv, including itemcode (foodID) and itemname (foodname)
+
+**food-id.csv** - 60 food items and code (in 'files')
+```{r eval=FALSE}
+foodid <- read_csv("food-id.csv")
+
+dataJ1 <- left_join(dataJ1, foodid, by = 'itemcode')
+
+dataJ1 <- relocate(dataJ1, itemname, .after = itemcode)  # itemname moves after itemcode
+```
+
+### 1.2.3. find only HHs consumed food in the HH in the last 7 day (i.e. cons_yn=1)
+- 3352HHs - 3290HHs = 62HHs did not report food consumption
+```{r eval=FALSE}
+hh <- dataJ1 %>% 
+  filter(cons_yn == 1) %>% 
+  distinct(y4_hhid) %>% 
+  mutate(hh = 1)
+
+write_csv(hh, "hh.csv")
+
+dataJ1cons <- left_join(hh, dataJ1, by = "y4_hhid")  # select 3290HHs for analysis
+
+hhno <- dataJ1cons %>% 
+  distinct(y4_hhid) # count the number of HHs - 3290HHs
+```
+
+## 1.3. Estimating food consumption amount in the HHs
+
+### 1.3.1. merge with food consumption unit conversion factor with the unit and conversion factors to calculate the food consumption in grams (cons_g)
+**unitconv.csv** - unit conversion factors (in 'files')
+```{r eval=FALSE}
+foodconv <- read_csv("unitconv.csv") %>% 
+  select(-itemname)  # omit duplicate variable before merging with dataJ1cons
+
+dataJ1consA <- left_join(dataJ1cons, foodconv, by = c('itemcode', 'cons_unit')) %>% 
+  mutate(cons_g = cons_quant*conv_fac)  # calculate the reported food amount in grams (cons_g)
+```
+
+### 1.3.2. merge edible portion function in ediblep.csv to calculate estimate amount of food consumed in the HH (cons_g_hh)
+**ediblep.csv** - edible portion (in 'files')
+```{r eval=FALSE}
+df_EP <- read_csv("ediblep.csv") %>% 
+  select(-itemname)
+
+dataJ1consB <- left_join(dataJ1consA, df_EP, by = 'itemcode') %>% 
+  mutate(cons_g_hh = cons_g*mean_EP)
+```
+
+### 1.3.3. save data with 60 food item consumption in 3290HHs
+```{r eval=FALSE}
+write_csv(dataJ1consB, "hhcons.csv")
+```
+
+
+
+

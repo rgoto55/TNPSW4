@@ -1,0 +1,374 @@
+---
+title: "modelling"
+author: "R Goto"
+date: "2023-12-02"
+output: html_document
+---
+## 6.1. Settings
+```{r eval=FALSE}
+library(tidyverse)
+library(summarytools)
+library(survey)
+library(srvyr)
+```
+
+## 6.2. Dataset
+```{r eval=FALSE}
+f60afec <- read_csv("f60afec.csv")  # cleaned data of 60 food consumption per day per AFE
+dataAw <- read_csv("dataAw.csv")  # data including weighting factors
+TZFCT3 <- read_csv("TZFCT3.csv") # organised food composition table (FCT) for 60 food items
+```
+
+## 6.3. Create FCT for status quo and full fortification
+```{r eval=FALSE}
+names(TZFCT3)
+# variable names with 'pf' is status quo and 'ff' is full fortification
+TZFCT3F <- TZFCT3 %>% 
+    mutate(vaoilpf=if_else(itemcode==1001, 490, 0),
+           vaoilff=if_else(itemcode==1001, 1750, 0),
+           vabunpf=if_else(itemcode==110, 34.79, 0),
+           vabunff=if_else(itemcode==110, 124.25, 0),
+           vabrepf=if_else(itemcode==109, 24.01, 0),
+           vabreff=if_else(itemcode==109, 85.75, 0),
+           vaswepf=if_else(itemcode==302, 59.78, 0),
+           vasweff=if_else(itemcode==302, 213.5, 0),
+           femzfpf=if_else(itemcode==105, 0, 0),
+           femzfff=if_else(itemcode==105, 3.3, 0),
+           fewhfpf=if_else(itemcode==1081, 1.55, 0),
+           fewhfff=if_else(itemcode==1081, 3.3, 0),
+           febunpf=if_else(itemcode==110, 1.30975, 0),
+           febunff=if_else(itemcode==110, 2.7885, 0),
+           febrepf=if_else(itemcode==109, 1.333, 0),
+           febreff=if_else(itemcode==109, 2.838, 0),
+           feswepf=if_else(itemcode==302, 1.271, 0),
+           fesweff=if_else(itemcode==302, 2.706, 0),
+           femacpf=if_else(itemcode==111, 1.55, 0),
+           femacff=if_else(itemcode==111, 3.3, 0),
+           znmzfpf=if_else(itemcode==105, 0, 0),
+           znmzfff=if_else(itemcode==105, 4.4, 0),
+           znwhfpf=if_else(itemcode==1081, 2.07, 0),
+           znwhfff=if_else(itemcode==1081, 4.4, 0),
+           znbunpf=if_else(itemcode==110, 1.74915, 0),
+           znbunff=if_else(itemcode==110, 3.718, 0),
+           znbrepf=if_else(itemcode==109, 1.7802, 0),
+           znbreff=if_else(itemcode==109, 3.784, 0),
+           znswepf=if_else(itemcode==302, 1.6974, 0),
+           znsweff=if_else(itemcode==302, 3.608, 0),
+           znmacpf=if_else(itemcode==111, 2.07, 0),
+           znmacff=if_else(itemcode==111, 4.4, 0),
+           folmzfpf=if_else(itemcode==105, 0, 0),
+           folmzfff=if_else(itemcode==105, 272, 0),
+           folwhfpf=if_else(itemcode==1081, 127.84, 0),
+           folwhfff=if_else(itemcode==1081, 272, 0),
+           folbunpf=if_else(itemcode==110, 108.0248, 0),
+           folbunff=if_else(itemcode==110, 229.84, 0),
+           folbrepf=if_else(itemcode==109, 109.9424, 0),
+           folbreff=if_else(itemcode==109, 233.92, 0),
+           folswepf=if_else(itemcode==302, 104.8288, 0),
+           folsweff=if_else(itemcode==302, 223.04, 0),
+           folmacpf=if_else(itemcode==111, 127.84, 0),
+           folmacff=if_else(itemcode==111, 272, 0),
+           vb12mzfpf=if_else(itemcode==105, 0, 0),
+           vb12mzfff=if_else(itemcode==105, 1.1, 0),
+           vb12whfpf=if_else(itemcode==1081, 0.52, 0),
+           vb12whfff=if_else(itemcode==1081, 1.1, 0),
+           vb12bunpf=if_else(itemcode==110, 0.4394, 0),
+           vb12bunff=if_else(itemcode==110, 0.9295, 0),
+           vb12brepf=if_else(itemcode==109, 0.4472, 0),
+           vb12breff=if_else(itemcode==109, 0.946, 0),
+           vb12swepf=if_else(itemcode==302, 0.4264, 0),
+           vb12sweff=if_else(itemcode==302, 0.902, 0),
+           vb12macpf=if_else(itemcode==111, 0.52, 0),
+           vb12macff=if_else(itemcode==111, 1.1, 0))
+
+TZFCT3F <- TZFCT3F %>% 
+  mutate(VApf=VAmcg+vaoilpf+vabunpf+vabrepf+vaswepf,
+         VAff=VAmcg+vaoilff+vabunff+vabreff+vasweff,
+         FEpf=FEmg+femzfpf+fewhfpf+febunpf+febrepf+feswepf,femacpf,
+         FEff=FEmg+femzfff+fewhfff+febunff+febreff+fesweff,femacff,
+         ZNpf=ZNmg+znmzfpf+znwhfpf+znbunpf+znbrepf+znswepf,znmacpf,
+         ZNff=ZNmg+znmzfff+znwhfff+znbunff+znbreff+znsweff,znmacff,
+         FOLpf=FOLmcg+folmzfpf+folwhfpf+folbunpf+folbrepf+folswepf,folmacpf,
+         FOLff=FOLmcg+folmzfff+folwhfff+folbunff+folbreff+folsweff,folmacff,
+         VB12pf=VB12mcg+vb12mzfpf+vb12whfpf+vb12bunpf+vb12brepf+vb12swepf,vb12macpf,
+         VB12ff=VB12mcg+vb12mzfff+vb12whfff+vb12bunff+vb12breff+vb12sweff,vb12macff)
+
+TZFCT3Fc <- TZFCT3F %>% 
+  select(itemcode, FEmg, ZNmg, VAmcg, FOLmcg, VB12mcg, FEpf, FEff, ZNpf, ZNff, VApf, VAff, FOLpf, FOLff, VB12pf, VB12ff)
+```
+
+## 6.3. Calculate estimate micronutrient intake in status quo and full fortification
+```{r eval=FALSE}
+# merge with TZFCT3Fc with estimated food consumption in g
+
+f60afecF <- left_join(f60afec, TZFCT3Fc, by = "itemcode")
+
+# calculate status quo and full fortification
+options(scipen = 10, digits=2)
+
+nf60afecF <- f60afecF %>% 
+  mutate(feafepf = g_afec*FEpf*0.01,
+         znafepf = g_afec*ZNpf*0.01,
+         vaafepf = g_afec*VApf*0.01,
+         folafepf = g_afec*FOLpf*0.01,
+         vb12afepf = g_afec*VB12pf*0.01,
+         feafeff = g_afec*FEff*0.01,
+         znafeff = g_afec*ZNff*0.01,
+         vaafeff = g_afec*VAff*0.01,
+         folafeff = g_afec*FOLff*0.01,
+         vb12afeff = g_afec*VB12ff*0.01)
+
+# calculate sum of nutrients from 60 food items by HHs
+nafetF <- nf60afecF %>% 
+  group_by(y4_hhid) %>% 
+  summarise(feafetpf=sum(feafepf, na.rm=TRUE),
+            znafetpf=sum(znafepf, na.rm=TRUE),
+            vaafetpf=sum(vaafepf, na.rm=TRUE),
+            folafetpf=sum(folafepf, na.rm=TRUE),
+            vb12afetpf=sum(vb12afepf, na.rm=TRUE),  
+            feafetff=sum(feafeff, na.rm=TRUE),
+            znafetff=sum(znafeff, na.rm=TRUE),
+            vaafetff=sum(vaafeff, na.rm=TRUE),
+            folafetff=sum(folafeff, na.rm=TRUE),
+            vb12afetff=sum(vb12afeff, na.rm=TRUE))
+
+write_csv(nafetF, "nafetF.csv")
+
+# get estimated micronutrient intakes by 60 food items in median and the interquartile range (IQR) in status quo and full fortification (Supplementary Table 3)
+# weighting
+names(dataAw)
+nmAF <- left_join(nafetF, dataAw, by = 'y4_hhid')   # merge with weighting factor
+
+nmAF_w <- nmAF %>%
+  as_survey_design(ids = clusterid, 
+                   weights = y4_weights, 
+                   strata = strataid,
+                   nest=TRUE)
+
+# status quo
+# in national
+options(scipen = 4, digits=4)
+nmAFpf_wmd <- nmAF_w %>%
+  summarise(femd = survey_median(feafetpf, na.rm=TRUE),
+            feqt = survey_quantile(feafetpf, c(0.25, 0.75), na.rm=TRUE),
+            znmd = survey_median(znafetpf, na.rm=TRUE),
+            znqt = survey_quantile(znafetpf, c(0.25, 0.75), na.rm=TRUE),
+            vamd = survey_median(vaafetpf, na.rm=TRUE),
+            vaqt = survey_quantile(vaafetpf, c(0.25, 0.75), na.rm=TRUE),
+            folmd = survey_median(folafetpf, na.rm=TRUE),
+            folqt = survey_quantile(folafetpf, c(0.25, 0.75), na.rm=TRUE),
+            vb12md = survey_median(vb12afetpf, na.rm=TRUE),
+            vb12qt = survey_quantile(vb12afetpf, c(0.25, 0.75), na.rm=TRUE)
+            )
+
+# by urban/rural
+nmAFpf_wmdur <- nmAF_w %>%
+  group_by(clustertype) %>% 
+  summarise(femd = survey_median(feafetpf, na.rm=TRUE),
+            feqt = survey_quantile(feafetpf, c(0.25, 0.75), na.rm=TRUE),
+            znmd = survey_median(znafetpf, na.rm=TRUE),
+            znqt = survey_quantile(znafetpf, c(0.25, 0.75), na.rm=TRUE),
+            vamd = survey_median(vaafetpf, na.rm=TRUE),
+            vaqt = survey_quantile(vaafetpf, c(0.25, 0.75), na.rm=TRUE),
+            folmd = survey_median(folafetpf, na.rm=TRUE),
+            folqt = survey_quantile(folafetpf, c(0.25, 0.75), na.rm=TRUE),
+            vb12md = survey_median(vb12afetpf, na.rm=TRUE),
+            vb12qt = survey_quantile(vb12afetpf, c(0.25, 0.75), na.rm=TRUE)
+            )
+
+# by strata
+nmAFpf_wmddo <- nmAF_w %>%
+  group_by(domain) %>% 
+  summarise(femd = survey_median(feafetpf, na.rm=TRUE),
+            feqt = survey_quantile(feafetpf, c(0.25, 0.75), na.rm=TRUE),
+            znmd = survey_median(znafetpf, na.rm=TRUE),
+            znqt = survey_quantile(znafetpf, c(0.25, 0.75), na.rm=TRUE),
+            vamd = survey_median(vaafetpf, na.rm=TRUE),
+            vaqt = survey_quantile(vaafetpf, c(0.25, 0.75), na.rm=TRUE),
+            folmd = survey_median(folafetpf, na.rm=TRUE),
+            folqt = survey_quantile(folafetpf, c(0.25, 0.75), na.rm=TRUE),
+            vb12md = survey_median(vb12afetpf, na.rm=TRUE),
+            vb12qt = survey_quantile(vb12afetpf, c(0.25, 0.75), na.rm=TRUE)
+            )
+
+# full fortification
+options(scipen = 4, digits=7)
+# in national
+nmAFff_wmd <- nmAF_w %>%
+  summarise(femd = survey_median(feafetff, na.rm=TRUE),
+            feqt = survey_quantile(feafetff, c(0.25, 0.75), na.rm=TRUE),
+            znmd = survey_median(znafetff, na.rm=TRUE),
+            znqt = survey_quantile(znafetff, c(0.25, 0.75), na.rm=TRUE),
+            vamd = survey_median(vaafetff, na.rm=TRUE),
+            vaqt = survey_quantile(vaafetff, c(0.25, 0.75), na.rm=TRUE),
+            folmd = survey_median(folafetff, na.rm=TRUE),
+            folqt = survey_quantile(folafetff, c(0.25, 0.75), na.rm=TRUE),
+            vb12md = survey_median(vb12afetff, na.rm=TRUE),
+            vb12qt = survey_quantile(vb12afetff, c(0.25, 0.75), na.rm=TRUE)
+            )
+
+# by urban/rural
+nmAFff_wmdur <- nmAF_w %>%
+  group_by(clustertype) %>% 
+  summarise(femd = survey_median(feafetff, na.rm=TRUE),
+            feqt = survey_quantile(feafetff, c(0.25, 0.75), na.rm=TRUE),
+            znmd = survey_median(znafetff, na.rm=TRUE),
+            znqt = survey_quantile(znafetff, c(0.25, 0.75), na.rm=TRUE),
+            vamd = survey_median(vaafetff, na.rm=TRUE),
+            vaqt = survey_quantile(vaafetff, c(0.25, 0.75), na.rm=TRUE),
+            folmd = survey_median(folafetff, na.rm=TRUE),
+            folqt = survey_quantile(folafetff, c(0.25, 0.75), na.rm=TRUE),
+            vb12md = survey_median(vb12afetff, na.rm=TRUE),
+            vb12qt = survey_quantile(vb12afetff, c(0.25, 0.75), na.rm=TRUE)
+            )
+
+# by strata
+nmAFff_wmddo <- nmAF_w %>%
+  group_by(domain) %>% 
+  summarise(femd = survey_median(feafetff, na.rm=TRUE),
+            feqt = survey_quantile(feafetff, c(0.25, 0.75), na.rm=TRUE),
+            znmd = survey_median(znafetff, na.rm=TRUE),
+            znqt = survey_quantile(znafetff, c(0.25, 0.75), na.rm=TRUE),
+            vamd = survey_median(vaafetff, na.rm=TRUE),
+            vaqt = survey_quantile(vaafetff, c(0.25, 0.75), na.rm=TRUE),
+            folmd = survey_median(folafetff, na.rm=TRUE),
+            folqt = survey_quantile(folafetff, c(0.25, 0.75), na.rm=TRUE),
+            vb12md = survey_median(vb12afetff, na.rm=TRUE),
+            vb12qt = survey_quantile(vb12afetff, c(0.25, 0.75), na.rm=TRUE)
+            )
+
+# prevalence of inadequacy of micronutrient intakes
+
+nafetFad <- nafetF %>% 
+  mutate(znadqpf=if_else(znafetpf<10.2, "inadequate", "adequate"),
+         vaadqpf=if_else(vaafetpf<490, "inadequate", "adequate"),
+         foladqpf=if_else(folafetpf<250, "inadequate", "adequate"),
+         vb12adqpf=if_else(vb12afetpf<2.0, "inadequate", "adequate"),
+         znadqff=if_else(znafetff<10.2, "inadequate", "adequate"),
+         vaadqff=if_else(vaafetff<490, "inadequate", "adequate"),
+         foladqff=if_else(folafetff<250, "inadequate", "adequate"),
+         vb12adqff=if_else(vb12afetff<2.0, "inadequate", "adequate"))
+
+# weighting 
+nafetFad_w <- left_join(nafetFad, dataAw, by = 'y4_hhid')   # merge with weighting factor
+
+nafetFad_w <- nafetFad_w %>%
+  as_survey_design(ids = clusterid, 
+                   weights = y4_weights, 
+                   strata = strataid,
+                   nest=TRUE)
+
+# proportion of zinc inadequacy in status quo
+options(digits=3)
+# nationally
+znadqpfn <- nafetFad_w %>%
+  group_by(znadqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+znadqpfur <- nafetFad_w %>%
+  group_by(clustertype, znadqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+znadqpfdo <- nafetFad_w %>%
+  group_by(domain, znadqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+# proportion of zinc inadequacy in full fortification
+# nationally
+znadqffn <- nafetFad_w %>%
+  group_by(znadqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+znadqffur <- nafetFad_w %>%
+  group_by(clustertype, znadqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+znadqffdo <- nafetFad_w %>%
+  group_by(domain, znadqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+# proportion of VA inadequacy in status quo
+# nationally
+vaadqpfn <- nafetFad_w %>%
+  group_by(vaadqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+vaadqpfur <- nafetFad_w %>%
+  group_by(clustertype, vaadqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+vaadqpfdo <- nafetFad_w %>%
+  group_by(domain, vaadqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+# proportion of VA inadequacy in full fortification
+# nationally
+vaadqffn <- nafetFad_w %>%
+  group_by(vaadqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+vaadqffur <- nafetFad_w %>%
+  group_by(clustertype, vaadqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+vaadqffdo <- nafetFad_w %>%
+  group_by(domain, vaadqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+  
+# proportion of folate inadequacy in status quo
+# nationally
+foladqpfn <- nafetFad_w %>%
+  group_by(foladqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+foladqpfur <- nafetFad_w %>%
+  group_by(clustertype, foladqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+foladqpfdo <- nafetFad_w %>%
+  group_by(domain, foladqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+# proportion of folate inadequacy in full fortification
+# nationally
+foladqffn <- nafetFad_w %>%
+  group_by(foladqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+foladqffur <- nafetFad_w %>%
+  group_by(clustertype, foladqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+foladqffdo <- nafetFad_w %>%
+  group_by(domain, foladqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+# proportion of VB12 inadequacy in status quo
+vb12adqpfn <- nafetFad_w %>%
+  group_by(vb12adqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+vb12adqpfur <- nafetFad_w %>%
+  group_by(clustertype, vb12adqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+vb12adqpfdo <- nafetFad_w %>%
+  group_by(domain, vb12adqpf) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+# proportion of vb12 inadequacy in full fortification
+# nationally
+vb12adqffn <- nafetFad_w %>%
+  group_by(vb12adqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by urban/rural
+vb12adqffur <- nafetFad_w %>%
+  group_by(clustertype, vb12adqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+# by strata
+vb12adqffdo <- nafetFad_w %>%
+  group_by(domain, vb12adqff) %>% 
+  summarise(prop=survey_prop( , vartype = c("ci"),  level = 0.95))
+
+```
+

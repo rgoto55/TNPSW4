@@ -1,0 +1,303 @@
+---
+title: "Tables 2, 3, and Supple Table 2"
+author: "R Goto"
+date: "2023-11-27"
+output: html_document
+---
+## 4.1. Settings
+```{r eval=FALSE}
+library(tidyverse)
+library(summarytools)
+library(survey)
+library(srvyr)
+```
+
+## 4.2. Dataset
+- open data of cleaned 60 food consumption per day per AFE and weighting factors
+```{r eval=FALSE}
+f60afec <- read_csv("f60afec.csv")  # cleaned data of 60 food consumption per day per AFE
+dataA <- read_csv("dataA.csv")  # data including weighting factors
+```
+## 4.3. the estimated consumption per day per AFE of the three food vehicles nationally, by urban/rural and four strata (Tables 2 and 3)
+### 4.3.1. maize flour
+```{r eval=FALSE}
+# select maize flour consumption (#105)
+maizef <- f60afec %>% 
+  filter(itemcode==105) 
+
+dataAw <- dataA %>% 
+  select(y4_hhid, domain, strataid, clusterid, clustertype, y4_weights)  # organise dataA with weighting factors
+
+write_csv(dataAw, "dataAw.csv")
+
+maizefA <- left_join(maizef, dataAw, by = 'y4_hhid')   # merge with weighting factor
+
+# weighting
+maizef_w <- maizefA %>%
+  as_survey_design(ids = clusterid, 
+                   weights = y4_weights, 
+                   strata = strataid,
+                   nest=TRUE)
+
+options(scipen = 4, digits=4)
+# in national
+# get estimated proportion of HHs consumed maize flour
+maizef_wpr <- maizef_w %>%
+  group_by(cons_yn) %>% 
+  summarise(prop=survey_prop())
+
+# get estimated maize consumption amount in median and the interquartile range (IQR)
+maizef_wmd <- maizef_w %>%
+  summarise(md = survey_median(g_afec, na.rm=TRUE),
+            qt = survey_quantile(g_afec, c(0.25, 0.75), na.rm=TRUE))
+
+# by urban/rural
+maizef_wprur <- maizef_w %>%
+  group_by(clustertype, cons_yn) %>% 
+  summarise(prop=survey_prop())
+
+maizef_wmdur <- maizef_w %>%
+  group_by(clustertype) %>% 
+  summarise(md = survey_median(g_afec, na.rm=TRUE),
+            qt = survey_quantile(g_afec, c(0.25, 0.75), na.rm=TRUE))
+
+# by four strata (domain)
+maizef_wprst <- maizef_w %>%
+  group_by(domain, cons_yn) %>% 
+  summarise(prop=survey_prop())
+
+maizef_wmdst <- maizef_w %>%
+  group_by(domain) %>% 
+  summarise(md = survey_median(g_afec, na.rm=TRUE),
+            qt = survey_quantile(g_afec, c(0.25, 0.75), na.rm=TRUE))
+
+```
+
+### 4.3.1. wheat flour
+- wheat flour (#1081) and added the wheat flour containing in;
+buns, cakes and biscuits (#110) - 84.5% containing wheat flour
+breads (#109) - 86.0%
+sweets (#302) - 82.0%
+macaroni and spaghetti (#111) - 100%
+```{r eval=FALSE}
+wheatf <- f60afec %>% 
+  filter(itemcode == 1081) %>% 
+  mutate(twf=g_afec) %>% 
+  mutate(cons_y = if_else(cons_yn == 1, 1, NA)) %>% 
+  select(y4_hhid, cons_y, twf)
+
+wbuns <- f60afec %>% 
+  filter(itemcode == 110) %>% 
+  mutate(twf=g_afec*0.845) %>% 
+  mutate(cons_y = if_else(cons_yn == 1, 1, NA)) %>% 
+  select(y4_hhid, cons_y, twf)
+  
+wbread <- f60afec %>% 
+  filter(itemcode == 109) %>% 
+  mutate(twf=g_afec*0.860) %>% 
+  mutate(cons_y = if_else(cons_yn == 1, 1, NA)) %>% 
+  select(y4_hhid, cons_y, twf)
+
+wsweets <- f60afec %>% 
+  filter(itemcode == 302) %>% 
+  mutate(twf=g_afec*0.820) %>% 
+  mutate(cons_y = if_else(cons_yn == 1, 1, NA)) %>% 
+  select(y4_hhid, cons_y, twf)
+
+wmacaro <- f60afec %>% 
+  filter(itemcode == 111) %>% 
+  mutate(twf=g_afec) %>% 
+  mutate(cons_y = if_else(cons_yn == 1, 1, NA)) %>% 
+  select(y4_hhid, cons_y, twf)
+
+# bind rows
+
+dftwf <- bind_rows(wheatf, wbuns, wbread, wsweets, wmacaro)
+
+# calculate total wheat flour consumption by HHs
+
+twf_sum <- dftwf %>% 
+  group_by(y4_hhid) %>% 
+  summarise(twheat = sum(twf, na.rm=TRUE),
+            twhcount = sum(cons_y, na.rm = TRUE)) %>% 
+  mutate(twheat=if_else(twheat>0, twheat, NA)) %>% 
+  mutate(twfcons=if_else(twhcount>0, 1, 0)) %>% 
+  select(-twhcount)
+
+wheatfA <- left_join(twf_sum, dataAw, by = 'y4_hhid')   # merge with weighting factor
+
+# weighting
+wheatf_w <- wheatfA %>%
+  as_survey_design(ids = clusterid, 
+                   weights = y4_weights, 
+                   strata = strataid,
+                   nest=TRUE)
+
+options(scipen = 4, digits=4)
+# in national
+# get estimated proportion of HHs consumed total wheat flour
+wheatf_wpr <- wheatf_w %>%
+  group_by(twfcons) %>% 
+  summarise(prop=survey_prop())
+
+# get estimated maize consumption amount in median and the interquartile range (IQR)
+wheatf_wmd <- wheatf_w %>%
+  summarise(wheatf_md = survey_median(twheat, na.rm=TRUE),
+            wheatf_qt = survey_quantile(twheat, c(0.25, 0.75), na.rm=TRUE))
+
+# by urban/rural
+wheatf_wprur <- wheatf_w %>%
+  group_by(clustertype, twfcons) %>% 
+  summarise(prop=survey_prop())
+
+wheatf_wmdur <- wheatf_w %>%
+  group_by(clustertype) %>% 
+  summarise(md = survey_median(twheat, na.rm=TRUE),
+            qt = survey_quantile(twheat, c(0.25, 0.75), na.rm=TRUE))
+
+# by four strata (domain)
+wheatf_wprst <- wheatf_w %>%
+  group_by(domain, twfcons) %>% 
+  summarise(prop=survey_prop())
+
+wheatf_wmdst <- wheatf_w %>%
+  group_by(domain) %>% 
+  summarise(md = survey_median(twheat, na.rm=TRUE),
+            qt = survey_quantile(twheat, c(0.25, 0.75), na.rm=TRUE))
+```
+
+
+### 4.3.2. cooking oils
+- cooking oils (#1001) and added cooking oils containing in;
+buns, cakes and biscuits (#110) - 7.1% containing oils
+breads (#109) - 4.9%
+sweets (#302) - 12.2%
+```{r eval=FALSE}
+oil <- f60afec %>% 
+  filter(itemcode == 1001) %>% 
+  mutate(toi = g_afec) %>% 
+  mutate(cons_y = if_else(cons_yn == 1, 1, NA)) %>% 
+  select(y4_hhid, cons_y, toi)
+
+obun <- f60afec %>% 
+  filter(itemcode == 110) %>% 
+  mutate(toi = g_afec*0.071) %>% 
+  mutate(cons_y = if_else(cons_yn == 1, 1, NA)) %>% 
+  select(y4_hhid, cons_y, toi)
+
+obread <- f60afec %>% 
+  filter(itemcode == 109) %>% 
+  mutate(toi = g_afec*0.049) %>% 
+  mutate(cons_y = if_else(cons_yn == 1, 1, NA)) %>% 
+  select(y4_hhid, cons_y, toi)
+
+osweets <- f60afec %>% 
+  filter(itemcode == 110) %>% 
+  mutate(toi = g_afec*0.122) %>% 
+  mutate(cons_y = if_else(cons_yn == 1, 1, NA)) %>% 
+  select(y4_hhid, cons_y, toi)
+
+# bind rows
+
+dftoi <- bind_rows(oil, obun, obread, osweets)
+
+# calculate total wheat flour consumption by HHs
+
+toi_sum <- dftoi %>% 
+  group_by(y4_hhid) %>% 
+  summarise(toil = sum(toi, na.rm=TRUE),
+            toicount = sum(cons_y, na.rm = TRUE)) %>% 
+  mutate(toil=if_else(toil>0, toil, NA)) %>% 
+  mutate(toilcons=if_else(toicount>0, 1, 0)) %>% 
+  select(-toicount)
+
+oilA <- left_join(toi_sum, dataAw, by = 'y4_hhid')   # merge with weighting factor
+
+# weighting
+oil_w <- oilA %>%
+  as_survey_design(ids = clusterid, 
+                   weights = y4_weights, 
+                   strata = strataid,
+                   nest=TRUE)
+
+options(scipen = 4, digits=4)
+# in national
+# get estimated proportion of HHs consumed total wheat flour
+oil_wpr <- oil_w %>%
+  group_by(toilcons) %>% 
+  summarise(prop=survey_prop())
+
+# get estimated maize consumption amount in median and the interquartile range (IQR)
+oilf_wmd <- oil_w %>%
+  summarise(md = survey_median(toil, na.rm=TRUE),
+            qt = survey_quantile(toil, c(0.25, 0.75), na.rm=TRUE))
+
+# by urban/rural
+oilf_wprur <- oil_w %>%
+  group_by(clustertype, toilcons) %>% 
+  summarise(prop=survey_prop())
+
+oilf_wmdur <- oil_w %>%
+  group_by(clustertype) %>% 
+  summarise(md = survey_median(toil, na.rm=TRUE),
+            qt = survey_quantile(toil, c(0.25, 0.75), na.rm=TRUE))
+
+# by four strata (domain)
+oil_wprst <- oil_w %>%
+  group_by(domain, toilcons) %>% 
+  summarise(prop=survey_prop())
+
+oil_wmdst <- oil_w %>%
+  group_by(domain) %>% 
+  summarise(md = survey_median(toil, na.rm=TRUE),
+            qt = survey_quantile(toil, c(0.25, 0.75), na.rm=TRUE))
+```
+
+
+## 4.4. the estimated consumption per day per AFE by 60 food items (Summplementory Table 2)
+```{r eval=FALSE}
+# marge with weighting fanctions
+f60A <- left_join(f60afec, dataAw, by = 'y4_hhid')   # merge with weighting factor
+
+# weighting
+f60A_w <- f60A %>%
+  as_survey_design(ids = clusterid, 
+                   weights = y4_weights, 
+                   strata = strataid,
+                   nest=TRUE)
+
+# get estimated proportion of HHs consumed 60 food items
+f60_wpr <- f60A_w %>%
+  group_by(itemcode, itemname, cons_yn) %>% 
+  summarise(prop=survey_prop()) %>% 
+  filter(cons_yn==1) %>% 
+  arrange(desc(prop)) %>% 
+  mutate(per=prop*100) %>% 
+  mutate(per = round(per, 1))
+
+write_csv(f60_wpr, "f60_wpr.csv")
+
+# get estimated food consumption amount in median and the interquartile range (IQR)
+f60_wmd <- f60A_w %>%
+  group_by(itemcode) %>% 
+  summarise(md = survey_median(g_afec, na.rm=TRUE),
+            qt = survey_quantile(g_afec, c(0.25, 0.75), na.rm=TRUE))
+
+f60_sum <- left_join(f60_wpr, f60_wmd, by = "itemcode")
+
+names(f60_sum)
+
+supple2 <- f60_sum %>% 
+  select(itemcode, itemname, prop, md, qt_q25, qt_q75)
+
+write_csv(supple2, "supple2.csv")
+
+```
+
+
+
+
+
+
+
+
